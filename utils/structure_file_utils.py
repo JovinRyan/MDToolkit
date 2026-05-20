@@ -1,4 +1,5 @@
 import scipy.constants as sc
+import mdtoolkit.logging as log
 
 def estimate_number_density(density: float, molecular_weight : float, atom_count : int = 1):
     '''
