@@ -89,7 +89,5 @@ def construct_molecule_list_from_df(system_df):
       )
       molecule_list.append(molecule)
 
-    print(molecule_list)
-
     return molecule_list
 

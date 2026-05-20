@@ -1,4 +1,6 @@
 import scipy.constants as sc
+import pandas as pd
+from MDToolkit.utils.misc_utils import is_real_float, is_strict_int
 # import mdtoolkit.logging as log
 
 def estimate_number_density(density: float, molecular_weight : float, atom_count : int = 1):
@@ -15,6 +17,14 @@ def estimate_number_density(density: float, molecular_weight : float, atom_count
     number_density = density/molecular_weight * sc.N_A/10**24 * atom_count
 
     return number_density
+
+def read_elements_csv(file_path = "/home/jovinryanj/projects/mdtoolkit/MDToolkit/data/PubChemElements_all.csv"):
+    '''
+    INPUT: \n
+    '''
+    elements_df = pd.read_csv(file_path)
+
+    return elements_df
 
 def identify_pdb_atom_indexes(file_path):
     '''
@@ -42,14 +52,64 @@ def give_pdb_df_header(sample_df_line):
     header (list): A list of column names for the PDB dataframe, based on the number of columns in the sample line.
     '''
 
-    base_header = ["atom_type", "atom_index", "atom_species", "molecule_name", "chain_id", "molecule_index", "x", "y", "z"]
-    num_columns = len(sample_df_line.tolist())
+    base_header_values = ["atom_type", "atom_index", "atom_species", "molecule_name", "chain_id", "molecule_index", "x", "y", "z"]
+    sample_df_values_list = sample_df_line.tolist()
+    num_columns = len(sample_df_values_list)
+
+    elemental_df = read_elements_csv()
 
     if num_columns < 9:
         error_message = f"Expected at least 9 columns in the PDB dataframe, but got {num_columns}. Please check the PDB file format."
         raise ValueError(error_message)
     elif num_columns > 9:
         for i in range(9, num_columns):
-            base_header.append(f"extra_column_{i-8}")
+            base_header_values.append(f"extra_column_{i-8}")
 
-    return base_header
+    #Initializing variables
+    header = [""] * num_columns
+    atom_type_index = None
+    atom_index_index = None
+    atom_species_index = None
+    molecule_name_index = None
+    chain_id_index = None
+    molecule_index_index = None
+    x_index = None
+    y_index = None
+    z_index = None
+
+    for i in range(num_columns):
+        match sample_df_values_list[i]:
+            case "ATOM" | "HETATM":
+                atom_type_index = i
+                atom_index_index = i + 1 if i + 1 < num_columns else None
+            case _ if i == atom_index_index:
+                pass
+            case _ if is_strict_int(sample_df_values_list[i]) and atom_index_index is None:
+                atom_index_index = i
+            case _ if is_strict_int(sample_df_values_list[i]) and atom_index_index is not None:
+                molecule_index_index = i
+            case _ if is_real_float(sample_df_values_list[i]) and x_index is None and y_index is None and z_index is None:
+                x_index = i
+                y_index = i + 1 if i + 1 < num_columns else None
+                z_index = i + 2 if i + 2 < num_columns else None
+            case _ if sample_df_values_list[i] in elemental_df["Symbol"].values and atom_species_index is None:
+                atom_species_index = i
+            case _ if molecule_name_index is None:
+                molecule_name_index = i
+            case _ if chain_id_index is None:
+                chain_id_index = i
+
+
+    header[atom_type_index] = "atom_type" if atom_type_index is not None else ""
+    header[atom_index_index] = "atom_index" if atom_index_index is not None else ""
+    header[atom_species_index] = "atom_species" if atom_species_index is not None else ""
+    header[molecule_index_index] = "molecule_index" if molecule_index_index is not None else ""
+    header[x_index] = "x"
+    header[y_index] = "y"
+    header[z_index] = "z"
+    header[molecule_name_index] = "molecule_name" if molecule_name_index is not None else ""
+    header[chain_id_index] = "chain_id" if chain_id_index is not None else ""
+
+    print(header)
+
+    return header

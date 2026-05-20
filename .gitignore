@@ -3,6 +3,7 @@ logs/
 
 #datagiles
 MDToolkit/data/common_pdb_files/*
+MDToolkit/data/my_pdb_files/*
 
 #misc env files
 .*
