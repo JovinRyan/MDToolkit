@@ -26,7 +26,25 @@ def identify_pdb_atom_indexes(file_path):
 
     with open(file_path, 'r') as f:
         lines = f.readlines()
-        start_index_ATOM = lines.find("ATOM")
-        start_index_HETATM = lines.find("HETATM")
-        end_index = lines.find("END")
+        start_index_ATOM = next((i for i, line in enumerate(lines) if line.startswith("ATOM")), float('inf'))
+        start_index_HETATM = next((i for i, line in enumerate(lines) if line.startswith("HETATM")), float('inf'))
+        end_index = next((i for i, line in enumerate(lines) if line.startswith("END")), float('inf'))
     return (min(start_index_ATOM, start_index_HETATM), end_index)
+
+def give_pdb_df_header(sample_df_line):
+    '''
+    INPUT: \n
+    sample_df_line (pandas Series): A sample line from the PDB dataframe to determine the number of columns.
+    '''
+
+    base_header = ["atom_type", "atom_index", "atom_species", "molecule_name", "chain_id", "molecule_index", "x", "y", "z"]
+    num_columns = len(sample_df_line.tolist())
+
+    if num_columns < 9:
+        error_message = f"Expected at least 9 columns in the PDB dataframe, but got {num_columns}. Please check the PDB file format."
+        raise ValueError(error_message)
+    elif num_columns > 9:
+        for i in range(9, num_columns):
+            base_header.append(f"extra_column_{i-8}")
+
+    return base_header

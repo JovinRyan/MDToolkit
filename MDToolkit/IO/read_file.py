@@ -1,5 +1,5 @@
 import pandas as pd
-from utils.structure_file_utils import identify_pdb_atom_indexes
+from MDToolkit.utils.structure_file_utils import identify_pdb_atom_indexes, give_pdb_df_header
 
 def read_pdb(file_path):
     """
@@ -14,8 +14,11 @@ def read_pdb(file_path):
 
     start_index, end_index = identify_pdb_atom_indexes(file_path)
 
-    pdb_df = pd.read_csv(file_path, sep='\t', skiprows=start_index + 1, nrows=end_index - start_index - 1, header=None)
+    pdb_df = pd.read_csv(file_path, skiprows=int(start_index), nrows=int(end_index - start_index), header=None, sep='\s+')
+    sample_line = pdb_df.iloc[0]
+
+    pdb_df.columns = give_pdb_df_header(sample_line)
 
     return pdb_df
 
-print(read_pdb('/home/jovinryanj/projects/MDToolkit/data/common_pdb_files/H2O.pdb'))
+print(read_pdb('/home/jovinryanj/projects/mdtoolkit/MDToolkit/data/common_pdb_files/H2O.pdb'))
