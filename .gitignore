@@ -8,3 +8,13 @@ MDToolkit/data/common_pdb_files/*
 .*
 !.gitignore
 uv.*
+__pycache__/
+*/__pycache__/
+*/*/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.env
+*.venv
+env/
+venv/
