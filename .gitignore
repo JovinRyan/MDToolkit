@@ -1,6 +1,9 @@
 #logs
 logs/
 
+#datagiles
+data/common_pdb_files/*
+
 #misc env files
 .*
 !.gitignore
