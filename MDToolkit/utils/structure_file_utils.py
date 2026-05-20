@@ -7,6 +7,9 @@ def estimate_number_density(density: float, molecular_weight : float, atom_count
     density (float) : density of species in g/cm^3 \n
     molecular_weight (float) : molecular weight of species in g/mol \n
     atom_count (int) : number of atoms in species molecule. Default = 1 \n
+
+    RETURNS: \n
+    number_density (float) : estimated number density of species in atoms/angstom^3
     '''
 
     number_density = density/molecular_weight * sc.N_A/10**24 * atom_count
@@ -17,10 +20,10 @@ def identify_pdb_atom_indexes(file_path):
     '''
     Reads a PDB file and identifies the indexes of the ATOM and HETATM lines.
 
-    Parameters:
+    INPUT:
     file_path (str): The path to the PDB file.
 
-    Returns:
+    RETURNS: \n
     tuple: A tuple containing start and end indexes: (start_index, end_index)
     '''
 
@@ -35,6 +38,8 @@ def give_pdb_df_header(sample_df_line):
     '''
     INPUT: \n
     sample_df_line (pandas Series): A sample line from the PDB dataframe to determine the number of columns.
+    RETURNS: \n
+    header (list): A list of column names for the PDB dataframe, based on the number of columns in the sample line.
     '''
 
     base_header = ["atom_type", "atom_index", "atom_species", "molecule_name", "chain_id", "molecule_index", "x", "y", "z"]

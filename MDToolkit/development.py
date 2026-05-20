@@ -1,7 +1,8 @@
 import pandas as pd
-from MDToolkit.utils.structure_file_utils import identify_pdb_atom_indexes
+from MDToolkit.IO.read_file import read_pdb
+from MDToolkit.data.objects import construct_molecule_list_from_df
 
 file_path = '/home/jovinryanj/projects/mdtoolkit/MDToolkit/data/common_pdb_files/H2O.pdb'
 
-df = pd.read_csv(file_path)
-print(df.iloc[4])
+pdb_df = read_pdb(file_path)
+molecule_list = construct_molecule_list_from_df(pdb_df)

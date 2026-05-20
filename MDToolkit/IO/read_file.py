@@ -3,13 +3,13 @@ from MDToolkit.utils.structure_file_utils import identify_pdb_atom_indexes, give
 
 def read_pdb(file_path):
     """
-    Reads a PDB file and returns its contents as a string.
+    Reads a PDB file and returns a pandas DataFrame containing the ATOM and HETATM lines.
 
-    Parameters:
+    INPUT:\n
     file_path (str): The path to the PDB file.
 
-    Returns:
-    str: The contents of the PDB file.
+    RETURNS:\n
+    pdb_df (pandas DataFrame): A DataFrame containing the ATOM and HETATM lines from the PDB file, with appropriate column headers.
     """
 
     start_index, end_index = identify_pdb_atom_indexes(file_path)
@@ -20,5 +20,3 @@ def read_pdb(file_path):
     pdb_df.columns = give_pdb_df_header(sample_line)
 
     return pdb_df
-
-print(read_pdb('/home/jovinryanj/projects/mdtoolkit/MDToolkit/data/common_pdb_files/H2O.pdb'))
