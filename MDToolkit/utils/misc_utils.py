@@ -24,3 +24,11 @@ def is_strict_int(value):
         return False
 
     return math.isfinite(x) and x.is_integer()
+
+def check_unique(lst):
+    seen = set()
+    for item in lst:
+        if item in seen:
+            return False  # Duplicate found, exit early
+        seen.add(item)
+    return True

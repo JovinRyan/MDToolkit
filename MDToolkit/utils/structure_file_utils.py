@@ -110,6 +110,4 @@ def give_pdb_df_header(sample_df_line):
     header[molecule_name_index] = "molecule_name" if molecule_name_index is not None else ""
     header[chain_id_index] = "chain_id" if chain_id_index is not None else ""
 
-    print(header)
-
     return header

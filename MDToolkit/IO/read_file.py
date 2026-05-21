@@ -1,5 +1,6 @@
 import pandas as pd
 from MDToolkit.utils.structure_file_utils import identify_pdb_atom_indexes, give_pdb_df_header
+from MDToolkit.utils.misc_utils import check_unique
 
 def read_pdb(file_path):
     """
@@ -18,5 +19,10 @@ def read_pdb(file_path):
     sample_line = pdb_df.iloc[0]
 
     pdb_df.columns = give_pdb_df_header(sample_line)
+
+    # header rectification (does not work for all cases, but is a quick fix for some common PDB formatting issues)
+
+    if not check_unique(pdb_df["chain_id"]) and check_unique(pdb_df["molecule_name"]):
+        pdb_df.rename(columns={"chain_id": "molecule_name", "molecule_name": "chain_id"}, inplace=True)
 
     return pdb_df
