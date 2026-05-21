@@ -1,7 +1,10 @@
 #logs
 logs/
 
-#datagiles
+#output files
+Output/
+
+#datafiles
 MDToolkit/data/common_pdb_files/*
 MDToolkit/data/my_pdb_files/*
 

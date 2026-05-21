@@ -1,5 +1,6 @@
 import math
 import re
+import decimal
 
 def is_real_float(value):
 
@@ -32,3 +33,7 @@ def check_unique(lst):
             return False  # Duplicate found, exit early
         seen.add(item)
     return True
+
+def count_decimals(num):
+    # Using decimal module to avoid floating point representation issues
+    return abs(decimal.Decimal(str(num)).as_tuple().exponent)

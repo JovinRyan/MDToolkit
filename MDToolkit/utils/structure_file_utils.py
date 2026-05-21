@@ -1,5 +1,6 @@
 import scipy.constants as sc
 import pandas as pd
+import math
 from MDToolkit.utils.misc_utils import is_real_float, is_strict_int
 # import mdtoolkit.logging as log
 
@@ -21,6 +22,10 @@ def estimate_number_density(density: float, molecular_weight : float, atom_count
 def read_elements_csv(file_path = "/home/jovinryanj/projects/mdtoolkit/MDToolkit/data/PubChemElements_all.csv"):
     '''
     INPUT: \n
+    file_path (str) : The path to the CSV file containing elemental data. Default is set to a common location within the MDToolkit project.\n
+
+    RETURNS: \n
+    elements_df (pandas DataFrame) : A DataFrame containing elemental data from the specified CSV file.
     '''
     elements_df = pd.read_csv(file_path)
 
@@ -111,3 +116,69 @@ def give_pdb_df_header(sample_df_line):
     header[chain_id_index] = "chain_id" if chain_id_index is not None else ""
 
     return header
+
+def get_bounding_box_from_molecule_list(molecule_list):
+    '''
+    INPUT: \n
+    molecule_list (list): A list of molecule objects, where each molecule object has a list of atom objects with x, y, z coordinates.
+
+    RETURNS: \n
+    bounding_box (dict): A dictionary containing the minimum and maximum x, y, z coordinates that define the bounding box of the molecule list.
+    '''
+
+    min_x = min(atom.position[0] for molecule in molecule_list for atom in molecule.atoms)
+    max_x = max(atom.position[0] for molecule in molecule_list for atom in molecule.atoms)
+    min_y = min(atom.position[1] for molecule in molecule_list for atom in molecule.atoms)
+    max_y = max(atom.position[1] for molecule in molecule_list for atom in molecule.atoms)
+    min_z = min(atom.position[2] for molecule in molecule_list for atom in molecule.atoms)
+    max_z = max(atom.position[2] for molecule in molecule_list for atom in molecule.atoms)
+
+    bounding_box = {
+        "min_x": min_x,
+        "max_x": max_x,
+        "min_y": min_y,
+        "max_y": max_y,
+        "min_z": min_z,
+        "max_z": max_z
+    }
+
+    return bounding_box
+
+def get_bounding_box_angles_from_bounding_box(bounding_box):
+    '''
+    INPUT: \n
+    bounding_box (dict): A dictionary containing the minimum and maximum x, y, z coordinates that define the bounding box of a molecule or system.
+
+    RETURNS: \n
+    box_angles (dict): A dictionary containing the angles (in degrees) between the edges of the bounding box, assuming it is a parallelepiped.
+    '''
+
+    # Calculate edge vectors
+    edge_vector_a = [bounding_box["max_x"] - bounding_box["min_x"], 0, 0]
+    edge_vector_b = [0, bounding_box["max_y"] - bounding_box["min_y"], 0]
+    edge_vector_c = [0, 0, bounding_box["max_z"] - bounding_box["min_z"]]
+
+    # Calculate angles between edge vectors
+    def calculate_angle(vec1, vec2):
+        dot_product = sum(vec1[i] * vec2[i] for i in range(3))
+        magnitude_vec1 = math.sqrt(sum(vec1[i] ** 2 for i in range(3)))
+        magnitude_vec2 = math.sqrt(sum(vec2[i] ** 2 for i in range(3)))
+        if magnitude_vec1 == 0 or magnitude_vec2 == 0:
+            return 0.0
+        cos_angle = dot_product / (magnitude_vec1 * magnitude_vec2)
+        cos_angle = max(min(cos_angle, 1), -1)  # Clamp to avoid numerical issues
+        angle_rad = math.acos(cos_angle)
+        angle_deg = math.degrees(angle_rad)
+        return angle_deg
+
+    angle_ab = calculate_angle(edge_vector_a, edge_vector_b)
+    angle_ac = calculate_angle(edge_vector_a, edge_vector_c)
+    angle_bc = calculate_angle(edge_vector_b, edge_vector_c)
+
+    box_angles = {
+        "angle_ab": angle_ab,
+        "angle_ac": angle_ac,
+        "angle_bc": angle_bc
+    }
+
+    return box_angles
