@@ -182,3 +182,20 @@ def get_bounding_box_angles_from_bounding_box(bounding_box):
     }
 
     return box_angles
+
+def identify_cif_atom_indexes(file_path):
+    '''
+    Reads a CIF file and identifies the indexes of the atomic information lines.
+
+    INPUT:
+    file_path (str): The path to the CIF file.
+
+    RETURNS: \n
+    tuple: A tuple containing start and end indexes: (start_index, end_index)
+    '''
+
+    with open(file_path, 'r') as f:
+        lines = f.readlines()
+        start_index = next((i for i, line in enumerate(lines) if line.startswith("loop_") and "_atom_site." in lines[i+1]), float('inf'))
+        end_index = next((i for i, line in enumerate(lines) if line.startswith("loop_") and "_atom_site." in lines[i+1] and i > start_index), float('inf'))
+    return (start_index + 2, end_index)

@@ -140,6 +140,20 @@ Methods:
         z_new = R[2][0]*atom.position[0] + R[2][1]*atom.position[1] + R[2][2]*atom.position[2]
         atom.position = [x_new, y_new, z_new]
 
+  def displace_to_non_negative_coordinates(self):
+    '''
+    Displaces the molecule so that all atom coordinates are non-negative.\n
+    INPUT:\n
+    None
+
+    RETURNS:\n
+    None: This method modifies the positions of the atoms in place and does not return anything.
+    '''
+    min_coords = [min(atom.position[i] for atom in self.atoms) for i in range(3)]
+    displacement_vector = [-min_coords[i] if min_coords[i] < 0 else 0 for i in range(3)]
+    for atom in self.atoms:
+      atom.position = [atom.position[i] + displacement_vector[i] for i in range(3)]
+
 
 class StructuredSystem:
   '''
@@ -185,7 +199,7 @@ def construct_molecule_list_from_df(system_df):
         atoms.append(atom)
       molecule = Molecule(
         molecule_id=molecule_index,
-        molecule_name=molecule_df["molecule_name"].iloc[0],
+        molecule_name=molecule_df["molecule_name"].iloc[molecule_index],
         atoms=atoms
       )
       molecule_list.append(molecule)

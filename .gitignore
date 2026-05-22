@@ -7,6 +7,7 @@ Output/
 #datafiles
 MDToolkit/data/common_pdb_files/*
 MDToolkit/data/my_pdb_files/*
+MDToolkit/data/cif_files/*
 
 #misc env files
 .*
