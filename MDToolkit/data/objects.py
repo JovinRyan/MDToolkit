@@ -170,6 +170,34 @@ class StructuredSystem:
   def __repr__(self):
     return f"StructuredSystem(molecule_list={self.molecule_list}, box_dimensions={self.box_dimensions}, box_angles={self.box_angles})"
 
+  def combine_with_other_structured_system(self, other_system):
+    '''
+    Combines this structured system with another structured system by merging their molecule lists and updating box dimensions and angles accordingly.\n
+    INPUT:\n
+    other_system (StructuredSystem): Another StructuredSystem object to be combined with this one.
+
+    RETURNS:\n
+    None: This method modifies the current StructuredSystem in place by combining it with the other system and does not return anything.
+    '''
+
+    system_max_molecule_index = max(molecule.id for molecule in self.molecule_list)
+    system_max_atom_index = max(atom.id for molecule in self.molecule_list for atom in molecule.atoms)
+    for molecule in other_system.molecule_list:
+      molecule.id += system_max_molecule_index
+      for atom in molecule.atoms:
+        atom.id += system_max_atom_index
+
+    self.molecule_list = self.molecule_list + other_system.molecule_list
+
+    self.box_dimensions = {
+        "min_x": min(self.box_dimensions["min_x"], other_system.box_dimensions["min_x"]),
+        "max_x": max(self.box_dimensions["max_x"], other_system.box_dimensions["max_x"]),
+        "min_y": min(self.box_dimensions["min_y"], other_system.box_dimensions["min_y"]),
+        "max_y": max(self.box_dimensions["max_y"], other_system.box_dimensions["max_y"]),
+        "min_z": min(self.box_dimensions["min_z"], other_system.box_dimensions["min_z"]),
+        "max_z": max(self.box_dimensions["max_z"], other_system.box_dimensions["max_z"])
+    }
+
 
 def construct_molecule_list_from_df(system_df):
     '''
@@ -199,7 +227,7 @@ def construct_molecule_list_from_df(system_df):
         atoms.append(atom)
       molecule = Molecule(
         molecule_id=molecule_index,
-        molecule_name=molecule_df["molecule_name"].iloc[molecule_index],
+        molecule_name=molecule_df["molecule_name"].iloc[0],
         atoms=atoms
       )
       molecule_list.append(molecule)

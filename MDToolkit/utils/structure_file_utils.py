@@ -1,6 +1,7 @@
 import scipy.constants as sc
 import pandas as pd
 import math
+import copy
 from MDToolkit.utils.misc_utils import is_real_float, is_strict_int
 # import mdtoolkit.logging as log
 
@@ -199,3 +200,44 @@ def identify_cif_atom_indexes(file_path):
         start_index = next((i for i, line in enumerate(lines) if line.startswith("loop_") and "_atom_site." in lines[i+1]), float('inf'))
         end_index = next((i for i, line in enumerate(lines) if line.startswith("loop_") and "_atom_site." in lines[i+1] and i > start_index), float('inf'))
     return (start_index + 2, end_index)
+
+def create_periodic_images(StructuredSystem, image_vectors = (2, 2, 1)):
+    '''
+    Creates periodic images of a structured system based on the specified image vectors.
+
+    INPUT: \n
+    StructuredSystem (StructuredSystem): A structured system object containing molecule and atom information, as well as box dimensions and angles.
+    image_vectors (tuple): A tuple specifying the number of periodic images to create in each dimension (x, y, z). Default is (2, 2, 1).
+
+    RETURNS: \n
+    new_structured_system (StructuredSystem): A new structured system object containing the original system and its periodic images.
+    '''
+
+    x_disp_vector = [i * StructuredSystem.box_dimensions["max_x"] - StructuredSystem.box_dimensions["min_x"] for i in range(image_vectors[0])]
+    y_disp_vector = [i * StructuredSystem.box_dimensions["max_y"] - StructuredSystem.box_dimensions["min_y"] for i in range(image_vectors[1])]
+    z_disp_vector = [i * StructuredSystem.box_dimensions["max_z"] - StructuredSystem.box_dimensions["min_z"] for i in range(image_vectors[2])]
+
+    original_system = copy.deepcopy(StructuredSystem)
+    Combined_system = copy.deepcopy(StructuredSystem)
+
+    for x_disp in x_disp_vector:
+        for y_disp in y_disp_vector:
+            for z_disp in z_disp_vector:
+                if x_disp == 0 and y_disp == 0 and z_disp == 0:
+                    continue
+                new_system = copy.deepcopy(original_system)
+                for molecule in new_system.molecule_list:
+                    for atom in molecule.atoms:
+                        atom.position[0] += x_disp
+                        atom.position[1] += y_disp
+                        atom.position[2] += z_disp
+                new_system.box_dimensions["min_x"] += x_disp
+                new_system.box_dimensions["max_x"] += x_disp
+                new_system.box_dimensions["min_y"] += y_disp
+                new_system.box_dimensions["max_y"] += y_disp
+                new_system.box_dimensions["min_z"] += z_disp
+                new_system.box_dimensions["max_z"] += z_disp
+
+                Combined_system.combine_with_other_structured_system(new_system)
+
+    return Combined_system

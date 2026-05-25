@@ -13,7 +13,8 @@ MDToolkit/data/cif_files/*
 .*
 !.gitignore
 uv.*
-__pycache__/
+
+./__pycache__/
 */__pycache__/
 */*/__pycache__/
 *.pyc

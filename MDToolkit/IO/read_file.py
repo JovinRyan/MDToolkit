@@ -2,7 +2,8 @@ import pandas as pd
 from itertools import groupby
 from MDToolkit.utils.structure_file_utils import *
 from MDToolkit.utils.misc_utils import check_unique, is_real_float, is_strict_int
-from MDToolkit.data.objects import construct_molecule_list_from_df
+from MDToolkit.data.objects import *
+
 
 def read_pdb(file_path):
     """
@@ -96,6 +97,63 @@ def read_cif(file_path):
 
     cif_molecule_list = construct_molecule_list_from_df(cif_df)
 
-    print(cif_molecule_list)
-
     return cif_molecule_list
+
+def read_cif_box_dimensions_and_angles(file_path):
+    """
+    Reads a CIF file and extracts the box dimensions and angles.
+    INPUT:\n
+    file_path (str): The path to the CIF file.
+    RETURNS:\n
+    tuple: A tuple containing the box dimensions and angles: (box_dimensions, box_angles)
+    """
+    with open(file_path, 'r') as f:
+        lines = f.readlines()
+
+        loop_indices = [i for i, line in enumerate(lines) if line.strip() == "loop_"]
+        data_name_indices = [i for i, line in enumerate(lines) if line.strip().startswith("_")]
+
+        for i in range(len(lines)):
+            match lines[i].strip().split()[0]:
+                case "_cell_length_a" : max_x = float(lines[i].strip().split()[1])
+                case "_cell_length_b" : max_y = float(lines[i].strip().split()[1])
+                case "_cell_length_c" : max_z = float(lines[i].strip().split()[1])
+                case "_cell_angle_alpha" : cell_angle_alpha = float(lines[i].strip().split()[1])
+                case "_cell_angle_beta" : cell_angle_beta = float(lines[i].strip().split()[1])
+                case "_cell_angle_gamma" : cell_angle_gamma = float(lines[i].strip().split()[1])
+
+    box_dimensions = {
+        "min_x": 0.0,
+        "max_x": max_x,
+        "min_y": 0.0,
+        "max_y": max_y,
+        "min_z": 0.0,
+        "max_z": max_z
+    }
+    box_angles = {
+        "angle_ab": cell_angle_alpha,
+        "angle_ac": cell_angle_beta,
+        "angle_bc": cell_angle_gamma
+    }
+    return box_dimensions, box_angles
+
+
+
+def cif_file_to_structured_system(file_path):
+    """
+    Reads a CIF file and returns a StructuredSystem object containing the molecular system information.
+
+    INPUT:\n
+    file_path (str): The path to the CIF file.
+
+    RETURNS:\n
+    structured_system (StructuredSystem): A StructuredSystem object containing the molecular system information from the CIF file.
+    """
+
+    cif_molecule_list = read_cif(file_path)
+
+    bounding_box, bounding_box_angles = read_cif_box_dimensions_and_angles(file_path)
+
+    structured_system = StructuredSystem(molecule_list=cif_molecule_list, box_dimensions=bounding_box, box_angles=bounding_box_angles)
+
+    return structured_system
