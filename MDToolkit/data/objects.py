@@ -109,7 +109,7 @@ Methods:
     RETURNS:\n
     None: This method modifies the positions of the atoms in place and does not return anything.
     '''
-    self.rebase_coordinates_to_new_origin(new_origin=[0.0, 0.0, 0.0])
+    # self.rebase_coordinates_to_new_origin(new_origin=[0.0, 0.0, 0.0])
 
     phi   = math.radians(phi_deg)
     theta = math.radians(theta_deg)
@@ -197,6 +197,31 @@ class StructuredSystem:
         "min_z": min(self.box_dimensions["min_z"], other_system.box_dimensions["min_z"]),
         "max_z": max(self.box_dimensions["max_z"], other_system.box_dimensions["max_z"])
     }
+
+  def set_all_molecules_id(self, new_id = 1):
+    '''
+    Sets the same ID for all molecules in the structured system.\n
+    INPUT:\n
+    new_id (int): The new ID to be assigned to all molecules in the structured system. Default is 1.
+
+    RETURNS:\n
+    None: This method modifies the molecule IDs in place and does not return anything.
+    '''
+    for molecule in self.molecule_list:
+      molecule.id = new_id
+
+  def rotate_system_spherical(self, theta_deg, phi_deg, psi_deg):
+    '''
+    Rotates the entire structured system using spherical coordinates via ZYZ Euler angles.\n
+    INPUT:\n
+    theta_deg (float): Polar angle in degrees — tilt from the z-axis (0 to 180).\n
+    phi_deg (float): Azimuthal angle in degrees — rotation in the xy-plane (0 to 360).\n
+    psi_deg (float): Roll angle in degrees — rotation around the radial vector (0 to 360).\n
+    RETURNS:\n
+    None: This method modifies the positions of the atoms in place and does not return anything.
+    '''
+    for molecule in self.molecule_list:
+      molecule.rotate_molecule_spherical(theta_deg, phi_deg, psi_deg)
 
 
 def construct_molecule_list_from_df(system_df):

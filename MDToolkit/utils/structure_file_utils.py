@@ -32,6 +32,21 @@ def read_elements_csv(file_path = "/home/jovinryanj/projects/mdtoolkit/MDToolkit
 
     return elements_df
 
+def create_elements_dictionary(file_path = "/home/jovinryanj/projects/mdtoolkit/MDToolkit/data/PubChemElements_all.csv"):
+    '''
+    INPUT: \n
+    file_path (str) : The path to the CSV file containing elemental data. Default is set to a common location within the MDToolkit project.\n
+
+    RETURNS: \n
+    elements_dict (dict) : A dictionary containing elemental data from the specified CSV file.\n
+
+    DATA: \n
+    "AtomicNumber","Symbol","Name","AtomicMass","CPKHexColor","ElectronConfiguration","Electronegativity","AtomicRadius","IonizationEnergy","ElectronAffinity","OxidationStates","StandardState","MeltingPoint","BoilingPoint","Density","GroupBlock","YearDiscovered"
+    '''
+    elements_df = read_elements_csv(file_path)
+    elements_dict = elements_df.set_index('Symbol').T.to_dict()
+    return elements_dict
+
 def identify_pdb_atom_indexes(file_path):
     '''
     Reads a PDB file and identifies the indexes of the ATOM and HETATM lines.
@@ -241,3 +256,113 @@ def create_periodic_images(StructuredSystem, image_vectors = (2, 2, 1)):
                 Combined_system.combine_with_other_structured_system(new_system)
 
     return Combined_system
+
+def delete_molecules_in_region(StructuredSystem, region_bounds):
+    '''
+    Deletes molecules from a structured system that have any atoms within a specified region.
+
+    INPUT: \n
+    StructuredSystem (StructuredSystem): A structured system object containing molecule and atom information, as well as box dimensions and angles.
+    region_bounds (dict): A dictionary specifying the bounds of the region in the format {"min_x": value, "max_x": value, "min_y": value, "max_y": value, "min_z": value, "max_z": value}.
+
+    RETURNS: \n
+    new_structured_system (StructuredSystem): A new structured system object with the specified molecules removed.
+    '''
+
+    new_structured_system = copy.deepcopy(StructuredSystem)
+    new_molecule_list = []
+
+    for molecule in new_structured_system.molecule_list:
+        keep_molecule = True
+        for atom in molecule.atoms:
+            if (region_bounds["min_x"] <= atom.position[0] <= region_bounds["max_x"] and
+                region_bounds["min_y"] <= atom.position[1] <= region_bounds["max_y"] and
+                region_bounds["min_z"] <= atom.position[2] <= region_bounds["max_z"]):
+                keep_molecule = False
+                break
+        if keep_molecule:
+            new_molecule_list.append(molecule)
+
+    new_structured_system.molecule_list = new_molecule_list
+
+    return new_structured_system
+
+def delete_atoms_in_region(StructuredSystem, region_bounds):
+    '''
+    Deletes atoms from a structured system that are within a specified region.
+
+    INPUT: \n
+    StructuredSystem (StructuredSystem): A structured system object containing molecule and atom information, as well as box dimensions and angles.
+    region_bounds (dict): A dictionary specifying the bounds of the region in the format {"min_x": value, "max_x": value, "min_y": value, "max_y": value, "min_z": value, "max_z": value}.
+
+    RETURNS: \n
+    new_structured_system (StructuredSystem): A new structured system object with the specified atoms removed.
+    '''
+
+    new_structured_system = copy.deepcopy(StructuredSystem)
+
+    for molecule in new_structured_system.molecule_list:
+        new_atom_list = []
+        for atom in molecule.atoms:
+            if not (region_bounds["min_x"] <= atom.position[0] <= region_bounds["max_x"] and
+                    region_bounds["min_y"] <= atom.position[1] <= region_bounds["max_y"] and
+                    region_bounds["min_z"] <= atom.position[2] <= region_bounds["max_z"]):
+                new_atom_list.append(atom)
+        molecule.atoms = new_atom_list
+
+    return new_structured_system
+
+def delete_molecules_outside_region(StructuredSystem, region_bounds):
+    '''
+    Deletes molecules from a structured system that do not have any atoms within a specified region.
+
+    INPUT: \n
+    StructuredSystem (StructuredSystem): A structured system object containing molecule and atom information, as well as box dimensions and angles.
+    region_bounds (dict): A dictionary specifying the bounds of the region in the format {"min_x": value, "max_x": value, "min_y": value, "max_y": value, "min_z": value, "max_z": value}.
+
+    RETURNS: \n
+    new_structured_system (StructuredSystem): A new structured system object with the specified molecules removed.
+    '''
+
+    new_structured_system = copy.deepcopy(StructuredSystem)
+    new_molecule_list = []
+
+    for molecule in new_structured_system.molecule_list:
+        keep_molecule = False
+        for atom in molecule.atoms:
+            if (region_bounds["min_x"] <= atom.position[0] <= region_bounds["max_x"] and
+                region_bounds["min_y"] <= atom.position[1] <= region_bounds["max_y"] and
+                region_bounds["min_z"] <= atom.position[2] <= region_bounds["max_z"]):
+                keep_molecule = True
+                break
+        if keep_molecule:
+            new_molecule_list.append(molecule)
+
+    new_structured_system.molecule_list = new_molecule_list
+
+    return new_structured_system
+
+def delete_atoms_outside_region(StructuredSystem, region_bounds):
+    '''
+    Deletes atoms from a structured system that are outside a specified region.
+
+    INPUT: \n
+    StructuredSystem (StructuredSystem): A structured system object containing molecule and atom information, as well as box dimensions and angles.
+    region_bounds (dict): A dictionary specifying the bounds of the region in the format {"min_x": value, "max_x": value, "min_y": value, "max_y": value, "min_z": value, "max_z": value}.
+
+    RETURNS: \n
+    new_structured_system (StructuredSystem): A new structured system object with the specified atoms removed.
+    '''
+
+    new_structured_system = copy.deepcopy(StructuredSystem)
+
+    for molecule in new_structured_system.molecule_list:
+        new_atom_list = []
+        for atom in molecule.atoms:
+            if (region_bounds["min_x"] <= atom.position[0] <= region_bounds["max_x"] and
+                region_bounds["min_y"] <= atom.position[1] <= region_bounds["max_y"] and
+                region_bounds["min_z"] <= atom.position[2] <= region_bounds["max_z"]):
+                new_atom_list.append(atom)
+        molecule.atoms = new_atom_list
+
+    return new_structured_system
