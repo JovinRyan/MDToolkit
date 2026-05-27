@@ -267,18 +267,12 @@ Methods:
     for molecule in self.molecule_list:
       molecule.id = new_id
 
-  # def rotate_system_spherical(self, theta_deg, phi_deg, psi_deg):
-  #   '''
-  #   Rotates the entire structured system using spherical coordinates via ZYZ Euler angles.\n
-  #   INPUT:\n
-  #   theta_deg (float): Polar angle in degrees — tilt from the z-axis (0 to 180).\n
-  #   phi_deg (float): Azimuthal angle in degrees — rotation in the xy-plane (0 to 360).\n
-  #   psi_deg (float): Roll angle in degrees — rotation around the radial vector (0 to 360).\n
-  #   RETURNS:\n
-  #   None: This method modifies the positions of the atoms in place and does not return anything.
-  #   '''
-  #   for molecule in self.molecule_list:
-  #     molecule.rotate_molecule_spherical(theta_deg, phi_deg, psi_deg)
+  def reset_atom_ids(self):
+    new_id = 1
+    for molecule in self.molecule_list:
+      for atom in molecule.atoms:
+        atom.id = new_id
+        new_id += 1
 
   def rotate_system_spherical(self, theta_deg, phi_deg, psi_deg):
     '''
@@ -294,7 +288,7 @@ Methods:
 
     positions = np.array([atom.position for atom in all_atoms])
 
-    rotation = R.from_euler('ZYZ', [theta_deg, phi_deg, psi_deg], degrees=True)
+    rotation = R.from_euler('ZYZ', [phi_deg, theta_deg, psi_deg], degrees=True)
 
     rotated_positions = rotation.apply(positions)
 
@@ -349,6 +343,44 @@ Methods:
     bool: True if all atoms have their elemental properties populated, False otherwise.
     '''
     return self._elemental_properties_populated
+
+  def find_COM(self):
+    if not self.check_if_all_atoms_have_elemental_properties():
+        self.populate_elemental_properties_for_all_atoms()
+
+    mass_cache = {}
+
+    all_atoms = [atom for molecule in self.molecule_list for atom in molecule.atoms]
+
+    positions = np.array([atom.position for atom in all_atoms])
+    masses = np.array([
+        mass_cache.setdefault(atom.element, atom.elemental_properties["AtomicMass"]) for atom in all_atoms
+    ])
+
+    center_of_mass = np.dot(masses, positions) / np.sum(masses)
+
+    return center_of_mass.tolist()
+
+  def set_COM_to_origin(self, origin = [0, 0, 0]):
+    COM = self.find_COM()
+
+    for molecule in self.molecule_list:
+        for atom in molecule.atoms:
+            atom.position = (np.array(atom.position) - np.array(COM) + np.array(origin)).tolist()
+
+    width_x = self.box_dimensions["max_x"] - self.box_dimensions["min_x"]
+    width_y = self.box_dimensions["max_y"] - self.box_dimensions["min_y"]
+    width_z = self.box_dimensions["max_z"] - self.box_dimensions["min_z"]
+
+    self.box_dimensions["min_x"] = origin[0] - width_x / 2
+    self.box_dimensions["max_x"] = origin[0] + width_x / 2
+
+    self.box_dimensions["min_y"] = origin[1] - width_y / 2
+    self.box_dimensions["max_y"] = origin[1] + width_y / 2
+
+    self.box_dimensions["min_z"] = origin[2] - width_z / 2
+    self.box_dimensions["max_z"] = origin[2] + width_z / 2
+
 
 def construct_molecule_list_from_df(system_df):
     '''

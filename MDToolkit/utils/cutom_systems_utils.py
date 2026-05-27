@@ -51,20 +51,4 @@ def find_center_of_mass(system : StructuredSystem):
 
     return center_of_mass.tolist()
 
-def center_at_com(system: StructuredSystem):
-    '''
-    '''
-    if not system.check_if_all_atoms_have_elemental_properties():
-        system.populate_elemental_properties_for_all_atoms()
-
-    mass_cache = {}
-
-    all_atoms = [atom for molecule in system.molecule_list for atom in molecule.atoms]
-
-    positions = np.array([atom.position for atom in all_atoms])
-    masses = np.array([
-        mass_cache.setdefault(atom.element, atom.elemental_properties["AtomicMass"]) for atom in all_atoms
-    ])
-
-    center_of_mass = np.dot(masses, positions) / np.sum(masses)
 

@@ -124,6 +124,11 @@ def write_lammps_structure_file_atomic_full(structured_system : StructuredSystem
             f.write(f"{num_atoms} atoms\n")
             f.write(f"{num_atomic_types} atom types\n\n")
 
+            # Write box dimensions
+            f.write(f"{structured_system.box_dimensions['min_x']} {structured_system.box_dimensions['max_x']} xlo xhi\n")
+            f.write(f"{structured_system.box_dimensions['min_y']} {structured_system.box_dimensions['max_y']} ylo yhi\n")
+            f.write(f"{structured_system.box_dimensions['min_z']} {structured_system.box_dimensions['max_z']} zlo zhi\n\n")
+
             f.write("Masses\n\n")
             element_to_type = {element: i+1 for i, element in enumerate(sorted(element_set))}
             if not structured_system.check_if_all_atoms_have_elemental_properties():
@@ -132,11 +137,6 @@ def write_lammps_structure_file_atomic_full(structured_system : StructuredSystem
                 atomic_mass = next(atom.elemental_properties["AtomicMass"] for molecule in structured_system.molecule_list for atom in molecule.atoms if atom.element == element)
                 f.write(f"{type_id} {atomic_mass:.4f} # {element}\n")
             f.write("\n")
-
-            # Write box dimensions
-            f.write(f"{structured_system.box_dimensions['min_x']} {structured_system.box_dimensions['max_x']} xlo xhi\n")
-            f.write(f"{structured_system.box_dimensions['min_y']} {structured_system.box_dimensions['max_y']} ylo yhi\n")
-            f.write(f"{structured_system.box_dimensions['min_z']} {structured_system.box_dimensions['max_z']} zlo zhi\n\n")
 
             # Write atoms section
             f.write("Atoms # full\n\n")
