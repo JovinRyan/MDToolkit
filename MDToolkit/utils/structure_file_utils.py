@@ -3,6 +3,7 @@ import pandas as pd
 import math
 import copy
 from MDToolkit.utils.misc_utils import is_real_float, is_strict_int
+# from MDToolkit.data.objects import Atom, Molecule, StructuredSystem
 # import mdtoolkit.logging as log
 
 def estimate_number_density(density: float, molecular_weight : float, atom_count : int = 1):
@@ -342,7 +343,7 @@ def delete_molecules_outside_region(StructuredSystem, region_bounds):
 
     return new_structured_system
 
-def delete_atoms_outside_region(StructuredSystem, region_bounds):
+def delete_atoms_outside_region(structured_system, region_bounds : dict, buffer = 2.5):
     '''
     Deletes atoms from a structured system that are outside a specified region.
 
@@ -354,7 +355,7 @@ def delete_atoms_outside_region(StructuredSystem, region_bounds):
     new_structured_system (StructuredSystem): A new structured system object with the specified atoms removed.
     '''
 
-    new_structured_system = copy.deepcopy(StructuredSystem)
+    new_structured_system = copy.deepcopy(structured_system)
 
     for molecule in new_structured_system.molecule_list:
         new_atom_list = []
@@ -364,5 +365,13 @@ def delete_atoms_outside_region(StructuredSystem, region_bounds):
                 region_bounds["min_z"] <= atom.position[2] <= region_bounds["max_z"]):
                 new_atom_list.append(atom)
         molecule.atoms = new_atom_list
+
+    new_structured_system.box_dimensions["min_x"] -= buffer
+    new_structured_system.box_dimensions["max_x"] += buffer
+    new_structured_system.box_dimensions["min_y"] -= buffer
+    new_structured_system.box_dimensions["max_y"] += buffer
+    new_structured_system.box_dimensions["min_z"] -= buffer
+    new_structured_system.box_dimensions["max_z"] += buffer
+
 
     return new_structured_system

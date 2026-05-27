@@ -1,6 +1,9 @@
 import pandas as pd
 import math
+import numpy as np
+from scipy.spatial.transform import Rotation as R
 from MDToolkit.utils.misc_utils import count_decimals
+from MDToolkit.utils.structure_file_utils import create_elements_dictionary
 
 class Atom:
   '''
@@ -17,7 +20,7 @@ Methods:
 - __repr__(self): Returns a string representation of the Atom object.
   '''
 
-  def __init__(self, id : int, element : str, position = None, charge : float = 0.0, chain_id : str = "A", type : str = "ATOM"):
+  def __init__(self, id : int, element : str, position = None, charge : float = 0.0, chain_id : str = "A", type : str = "ATOM", elemental_properties = None, elemental_properties_keys = None):
 
     if position is None:
       position = [0.0, 0.0, 0.0]
@@ -28,8 +31,15 @@ Methods:
     self.chain_id = chain_id
     self.type = type
 
+    if elemental_properties is None:
+      elemental_properties = {}
+    self.elemental_properties = elemental_properties
+    if elemental_properties_keys is None:
+      elemental_properties_keys = []
+    self.elemental_properties_keys = elemental_properties_keys
+
   def __repr__(self):
-    return f"Atom(type='{self.type}', id={self.id}, element='{self.element}', position={self.position}, charge={self.charge}, chain_id='{self.chain_id}' ')"
+    return f"Atom(type='{self.type}', id={self.id}, element='{self.element}', position={self.position}, charge={self.charge}, chain_id='{self.chain_id}', elemental_properties='{self.elemental_properties}', elemental_properties_keys='{self.elemental_properties_keys}')"
 
   def get_distance_to(self, coordinate):
     '''
@@ -43,6 +53,40 @@ Methods:
 
     dist = math.dist(self.position, coordinate)
     return dist
+
+  def fix_2char_element_symbol(self):
+    '''
+    Fixes the element symbol of this atom if it consists of two characters by capitalizing the first letter and making the second letter lowercase.\n
+    INPUT:\n
+    None
+
+    RETURNS:\n
+    None: This method modifies the element symbol of the atom in place and does not return anything.
+    '''
+    if len(self.element) == 2:
+      self.element = self.element[0].upper() + self.element[1].lower()
+
+  def populate_elemental_properties(self):
+    '''
+    Populates the elemental properties of this atom based on a provided dictionary mapping element symbols to their properties.\n
+    INPUT:\n
+    elemental_properties_dict (dict): A dictionary where keys are element symbols (e.g., 'H', 'O', 'C') and values are dictionaries containing properties for each element.
+
+    RETURNS:\n
+    None: This method modifies the elemental properties of the atom in place and does not return anything.
+    '''
+
+    try:
+      elemental_properties_dict = create_elements_dictionary()[self.element]
+
+      self.elemental_properties = elemental_properties_dict
+      self.elemental_properties_keys = list(elemental_properties_dict.keys())
+    except KeyError:
+      self.fix_2char_element_symbol()
+      elemental_properties_dict = create_elements_dictionary()[self.element]
+
+      self.elemental_properties = elemental_properties_dict
+      self.elemental_properties_keys = list(elemental_properties_dict.keys())
 
 class Molecule:
   '''
@@ -159,6 +203,18 @@ class StructuredSystem:
   '''
   Represents a structured molecular system.\n
   Parameters:
+- molecule_list (list): A list of Molecule objects that make up the structured system.
+- box_dimensions (dict): A dictionary containing the minimum and maximum coordinates of the system in each dimension (e.g., {"min_x": 0.0, "max_x": 10
+.0, "min_y": 0.0, "max_y": 10.0, "min_z": 0.0, "max_z": 10.0}). Default is None.
+- box_angles (dict): A dictionary containing the angles between the box vectors (e.g., {"angle_ab": 90.0, "angle_ac": 90.0, "angle_bc": 90.0}). Default is None.\n
+Methods:
+- __init__(self, molecule_list, box_dimensions = None, box_angles = None): Initializes a StructuredSystem object with the given parameters.
+- __repr__(self): Returns a string representation of the StructuredSystem object.
+- combine_with_other_structured_system(self, other_system): Combines this structured system with another structured system by merging their molecule lists and updating box dimensions and angles accordingly.
+- set_all_molecules_id(self, new_id = 1): Sets the same ID for all molecules in the structured system.
+- rotate_system_spherical(self, theta_deg, phi_deg, psi_deg): Rotates the entire structured system using spherical coordinates via ZYZ Euler angles.
+- populate_elemental_properties_for_all_atoms(self): Populates the elemental properties for all atoms in all molecules of the structured system based on a provided dictionary mapping element symbols to their properties.
+- check_if_all_atoms_have_elemental_properties(self): Checks if all atoms in all molecules of the structured system have their elemental properties populated.
   '''
   def __init__(self, molecule_list, box_dimensions = None, box_angles = None):
     self.molecule_list = molecule_list
@@ -166,6 +222,7 @@ class StructuredSystem:
     if box_angles is None:
       box_angles = [90.0, 90.0, 90.0]
     self.box_angles = box_angles
+    self._elemental_properties_populated = False
 
   def __repr__(self):
     return f"StructuredSystem(molecule_list={self.molecule_list}, box_dimensions={self.box_dimensions}, box_angles={self.box_angles})"
@@ -210,6 +267,19 @@ class StructuredSystem:
     for molecule in self.molecule_list:
       molecule.id = new_id
 
+  # def rotate_system_spherical(self, theta_deg, phi_deg, psi_deg):
+  #   '''
+  #   Rotates the entire structured system using spherical coordinates via ZYZ Euler angles.\n
+  #   INPUT:\n
+  #   theta_deg (float): Polar angle in degrees — tilt from the z-axis (0 to 180).\n
+  #   phi_deg (float): Azimuthal angle in degrees — rotation in the xy-plane (0 to 360).\n
+  #   psi_deg (float): Roll angle in degrees — rotation around the radial vector (0 to 360).\n
+  #   RETURNS:\n
+  #   None: This method modifies the positions of the atoms in place and does not return anything.
+  #   '''
+  #   for molecule in self.molecule_list:
+  #     molecule.rotate_molecule_spherical(theta_deg, phi_deg, psi_deg)
+
   def rotate_system_spherical(self, theta_deg, phi_deg, psi_deg):
     '''
     Rotates the entire structured system using spherical coordinates via ZYZ Euler angles.\n
@@ -220,9 +290,65 @@ class StructuredSystem:
     RETURNS:\n
     None: This method modifies the positions of the atoms in place and does not return anything.
     '''
-    for molecule in self.molecule_list:
-      molecule.rotate_molecule_spherical(theta_deg, phi_deg, psi_deg)
+    all_atoms = [atom for molecule in self.molecule_list for atom in molecule.atoms]
 
+    positions = np.array([atom.position for atom in all_atoms])
+
+    rotation = R.from_euler('ZYZ', [theta_deg, phi_deg, psi_deg], degrees=True)
+
+    rotated_positions = rotation.apply(positions)
+
+    for i in range(len(rotated_positions)):
+      all_atoms[i].position = rotated_positions[i]
+
+    vertices = np.array([
+      [self.box_dimensions["min_x"], self.box_dimensions["min_y"], self.box_dimensions["min_z"]],
+      [self.box_dimensions["max_x"], self.box_dimensions["min_y"], self.box_dimensions["min_z"]],
+      [self.box_dimensions["min_x"], self.box_dimensions["max_y"], self.box_dimensions["min_z"]],
+      [self.box_dimensions["min_x"], self.box_dimensions["min_y"], self.box_dimensions["max_z"]],
+      [self.box_dimensions["max_x"], self.box_dimensions["max_y"], self.box_dimensions["min_z"]],
+      [self.box_dimensions["max_x"], self.box_dimensions["min_y"], self.box_dimensions["max_z"]],
+      [self.box_dimensions["min_x"], self.box_dimensions["max_y"], self.box_dimensions["max_z"]],
+      [self.box_dimensions["max_x"], self.box_dimensions["max_y"], self.box_dimensions["max_z"]],
+      ])
+
+    rotated_vertices = rotation.apply(vertices).tolist()
+    vertices_x_coordinates = [vertex[0] for vertex in rotated_vertices]
+    vertices_y_coordinates = [vertex[1] for vertex in rotated_vertices]
+    vertices_z_coordinates = [vertex[2] for vertex in rotated_vertices]
+
+    self.box_dimensions["min_x"] = min(vertices_x_coordinates)
+    self.box_dimensions["max_x"] = max(vertices_x_coordinates)
+    self.box_dimensions["min_y"] = min(vertices_y_coordinates)
+    self.box_dimensions["max_y"] = max(vertices_y_coordinates)
+    self.box_dimensions["min_z"] = min(vertices_z_coordinates)
+    self.box_dimensions["max_z"] = max(vertices_z_coordinates)
+
+  def populate_elemental_properties_for_all_atoms(self):
+    '''
+    Populates the elemental properties for all atoms in all molecules of the structured system based on a provided dictionary mapping element symbols to their properties.\n
+    INPUT:\n
+    None
+
+    RETURNS:\n
+    None: This method modifies the elemental properties of the atoms in place and does not return anything.
+    '''
+    for molecule in self.molecule_list:
+      for atom in molecule.atoms:
+        atom.populate_elemental_properties()
+
+    self._elemental_properties_populated = True
+
+  def check_if_all_atoms_have_elemental_properties(self):
+    '''
+    Checks if all atoms in all molecules of the structured system have their elemental properties populated.\n
+    INPUT:\n
+    None
+
+    RETURNS:\n
+    bool: True if all atoms have their elemental properties populated, False otherwise.
+    '''
+    return self._elemental_properties_populated
 
 def construct_molecule_list_from_df(system_df):
     '''
@@ -249,6 +375,7 @@ def construct_molecule_list_from_df(system_df):
           charge=0.0,
           chain_id=atom_row["chain_id"]
         )
+        atom.fix_2char_element_symbol()
         atoms.append(atom)
       molecule = Molecule(
         molecule_id=molecule_index,

@@ -137,8 +137,6 @@ def read_cif_box_dimensions_and_angles(file_path):
     }
     return box_dimensions, box_angles
 
-
-
 def cif_file_to_structured_system(file_path):
     """
     Reads a CIF file and returns a StructuredSystem object containing the molecular system information.
@@ -155,5 +153,26 @@ def cif_file_to_structured_system(file_path):
     bounding_box, bounding_box_angles = read_cif_box_dimensions_and_angles(file_path)
 
     structured_system = StructuredSystem(molecule_list=cif_molecule_list, box_dimensions=bounding_box, box_angles=bounding_box_angles)
+
+    return structured_system
+
+def pdb_file_to_structured_system(file_path):
+    """
+    Reads a PDB file and returns a StructuredSystem object containing the molecular system information.
+
+    INPUT:\n
+    file_path (str): The path to the PDB file.
+
+    RETURNS:\n
+    structured_system (StructuredSystem): A StructuredSystem object containing the molecular system information from the PDB file.
+    """
+
+    pdb_molecule_list = read_pdb(file_path)
+
+    box_dimensions = get_bounding_box_from_molecule_list(pdb_molecule_list)
+
+    box_angles = get_bounding_box_angles_from_bounding_box(box_dimensions)
+
+    structured_system = StructuredSystem(molecule_list=pdb_molecule_list, box_dimensions=box_dimensions, box_angles=box_angles)
 
     return structured_system
