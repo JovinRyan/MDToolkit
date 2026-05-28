@@ -24,31 +24,95 @@ def get_min_periodic_image_number(unit_cell_system : StructuredSystem, max_x : f
 
     return (num_images_x, num_images_y, num_images_z)
 
-def find_center_of_mass(system : StructuredSystem):
-    """
-    Calculates the center of mass of a structured system.
+def create_pore_circular(structured_system, radius=10.0, origin=[0, 0], min_radius=1.0, maintain_stoich=True, radius_step=0.5, tolerance=1e-5):
 
-    PARAMETERS:\n
-    system (StructuredSystem): The structured system for which to calculate the center of mass.
-
-    RETURNS:\n
-    list: A list of three floats representing the x, y, and z coordinates of the center of mass, respectively.
-    """
-
-    if not system.check_if_all_atoms_have_elemental_properties():
-        system.populate_elemental_properties_for_all_atoms()
-
-    mass_cache = {}
-
-    all_atoms = [atom for molecule in system.molecule_list for atom in molecule.atoms]
-
-    positions = np.array([atom.position for atom in all_atoms])
-    masses = np.array([
-        mass_cache.setdefault(atom.element, atom.elemental_properties["AtomicMass"]) for atom in all_atoms
+    atom_list = np.array([
+        atom
+        for molecule in structured_system.molecule_list
+        for atom in molecule.atoms
     ])
 
-    center_of_mass = np.dot(masses, positions) / np.sum(masses)
+    yz_positions = np.array([
+        [atom.position[1], atom.position[2]]
+        for atom in atom_list
+    ])
 
-    return center_of_mass.tolist()
+    origin = np.array(origin)
+
+    # Distance from pore center
+    distances = np.linalg.norm(
+        yz_positions - origin,
+        axis=1
+    )
+
+    # Reference stoich
+    if maintain_stoich:
+        stoich_dict = structured_system.get_system_stoich_dict()
+
+    current_radius = radius
+
+    while current_radius >= min_radius:
+
+        mask = distances <= current_radius
+
+        selected_atoms = atom_list[mask]
+
+        if not maintain_stoich:
+            break
+
+        selected_elements = np.array([
+            atom.element for atom in selected_atoms
+        ])
+
+        elements, counts = np.unique(
+            selected_elements,
+            return_counts=True
+        )
+
+        if len(counts) == 0:
+            current_radius -= radius_step
+            continue
+
+        min_count = counts.min()
+
+        selected_stoich_dict = {
+            elem: count / min_count
+            for elem, count in zip(elements, counts)
+        }
+
+        stoich_match = True
+
+        for elem, ref_value in stoich_dict.items():
+
+            if elem not in selected_stoich_dict:
+                stoich_match = False
+                break
+
+            if not np.isclose(
+                selected_stoich_dict[elem],
+                ref_value,
+                atol=tolerance
+            ):
+                stoich_match = False
+                break
+
+        if stoich_match:
+            break
+
+        current_radius -= radius_step
+
+    atoms_to_delete = [
+        atom.id for atom in selected_atoms
+    ]
+
+    structured_system.delete_atoms_by_ids(atoms_to_delete)
+
+    return structured_system, np.pi * current_radius**2
+
+
+
+
+
+
 
 

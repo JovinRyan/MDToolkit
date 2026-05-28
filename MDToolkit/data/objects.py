@@ -1,6 +1,7 @@
 import pandas as pd
 import math
 import numpy as np
+from scipy.spatial import cKDTree
 from scipy.spatial.transform import Rotation as R
 from MDToolkit.utils.misc_utils import count_decimals
 from MDToolkit.utils.structure_file_utils import create_elements_dictionary
@@ -274,6 +275,12 @@ Methods:
         atom.id = new_id
         new_id += 1
 
+  def reset_molecule_ids(self):
+    new_id = 1
+    for molecule in self.molecule_list:
+      molecule.id = new_id
+      new_id += 1
+
   def rotate_system_spherical(self, theta_deg, phi_deg, psi_deg):
     '''
     Rotates the entire structured system using spherical coordinates via ZYZ Euler angles.\n
@@ -380,6 +387,48 @@ Methods:
 
     self.box_dimensions["min_z"] = origin[2] - width_z / 2
     self.box_dimensions["max_z"] = origin[2] + width_z / 2
+
+  def get_system_stoich_dict(self):
+    all_atoms_element_list = np.array([atom.element for molecule in self.molecule_list for atom in molecule.atoms])
+    elements_list, counts = np.unique(all_atoms_element_list, return_counts=True)
+    stoich_list = [count/min(counts) for count in counts]
+
+    return dict(zip(elements_list, stoich_list))
+
+  def build_nD_tree(self, axes : list = ["x", "y", "z"]):
+    axes_indices = []
+
+    if "x" in axes:
+      axes_indices.append(0)
+    if "y" in axes:
+      axes_indices.append(1)
+    if "z" in axes:
+      axes_indices.append(2)
+
+    axes_indices.sort()
+
+    positions = np.array([[atom.position[i] for i in axes_indices] for molecule in self.molecule_list for atom in molecule.atoms])
+
+    return cKDTree(positions)
+
+  def delete_atoms_by_ids(self, atom_ids, resset_ids = True):
+    '''
+    '''
+
+    atom_ids = set(atom_ids)
+    new_molecule_list = []
+
+    for molecule in self.molecule_list:
+      molecule.atoms = [atom for atom in molecule.atoms if atom.id not in atom_ids]
+
+      if len(molecule.atoms) > 0:
+        new_molecule_list.append(molecule)
+
+    self.molecule_list = new_molecule_list
+
+    if resset_ids:
+      self.reset_atom_ids()
+      self.reset_molecule_ids()
 
 
 def construct_molecule_list_from_df(system_df):
