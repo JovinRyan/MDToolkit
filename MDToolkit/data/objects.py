@@ -430,6 +430,36 @@ Methods:
       self.reset_atom_ids()
       self.reset_molecule_ids()
 
+  def set_box_dimensions_to_vdw(self):
+    if not self.check_if_all_atoms_have_elemental_properties():
+        self.populate_elemental_properties_for_all_atoms()
+
+    positions = np.array([
+        atom.position
+        for molecule in self.molecule_list
+        for atom in molecule.atoms
+    ])
+
+    radii = np.array([
+        atom.elemental_properties["AtomicRadius"]/100
+        for molecule in self.molecule_list
+        for atom in molecule.atoms
+    ])[:, np.newaxis]
+
+    min_vdw_coords = positions - radii
+    max_vdw_coords = positions + radii
+
+    self.box_dimensions["min_x"] = np.min(min_vdw_coords[:, 0])
+    self.box_dimensions["max_x"] = np.max(max_vdw_coords[:, 0])
+
+    self.box_dimensions["min_y"] = np.min(min_vdw_coords[:, 1])
+    self.box_dimensions["max_y"] = np.max(max_vdw_coords[:, 1])
+
+    self.box_dimensions["min_z"] = np.min(min_vdw_coords[:, 2])
+    self.box_dimensions["max_z"] = np.max(max_vdw_coords[:, 2])
+
+  def get_box_lengths(self):
+    return self.box_dimensions["max_x"] - self.box_dimensions["min_x"], self.box_dimensions["max_y"] - self.box_dimensions["min_y"], self.box_dimensions["max_z"] - self.box_dimensions["min_z"]
 
 def construct_molecule_list_from_df(system_df):
     '''

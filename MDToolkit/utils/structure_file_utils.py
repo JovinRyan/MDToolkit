@@ -6,7 +6,7 @@ from MDToolkit.utils.misc_utils import is_real_float, is_strict_int
 # from MDToolkit.data.objects import Atom, Molecule, StructuredSystem
 # import mdtoolkit.logging as log
 
-def estimate_number_density(density: float, molecular_weight : float, atom_count : int = 1):
+def estimate_number_density(density: float, molecular_weight : float):
     '''
     INPUT: \n
     density (float) : density of species in g/cm^3 \n
@@ -17,7 +17,7 @@ def estimate_number_density(density: float, molecular_weight : float, atom_count
     number_density (float) : estimated number density of species in atoms/angstom^3
     '''
 
-    number_density = density/molecular_weight * sc.N_A/10**24 * atom_count
+    number_density = density/molecular_weight * sc.N_A/10**24
 
     return number_density
 
