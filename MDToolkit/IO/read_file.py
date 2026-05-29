@@ -5,7 +5,7 @@ from MDToolkit.utils.misc_utils import check_unique, is_real_float, is_strict_in
 from MDToolkit.data.objects import *
 
 
-def read_pdb(file_path):
+def read_pdb(file_path : str):
     """
     Reads a PDB file and returns a pandas DataFrame containing the ATOM and HETATM lines.
 
@@ -18,7 +18,7 @@ def read_pdb(file_path):
 
     start_index, end_index = identify_pdb_atom_indexes(file_path)
 
-    pdb_df = pd.read_csv(file_path, skiprows=int(start_index), nrows=int(end_index - start_index), header=None, sep='\s+')
+    pdb_df = pd.read_csv(file_path, skiprows=int(start_index), nrows=int(end_index - start_index), header=None, sep=r'\s+', engine="python-fwf")
     sample_line = pdb_df.iloc[0]
 
     pdb_df.columns = give_pdb_df_header(sample_line)
@@ -31,6 +31,24 @@ def read_pdb(file_path):
     pdb_molecule_list = construct_molecule_list_from_df(pdb_df)
 
     return pdb_molecule_list
+
+def read_packmol_pdb(file_path : str):
+    """
+    """
+
+    start_index, end_index = identify_pdb_atom_indexes(file_path)
+    col_widths = [6, 7, 2, 5, 2, 8, 8, 8, 8]
+    pdb_df = pd.read_fwf(file_path, skiprows=int(start_index), nrows=int(end_index - start_index), header = None, widths=col_widths)
+
+    pdb_df.columns = give_pdb_df_header(pdb_df.iloc[0])
+
+    if not check_unique(pdb_df["chain_id"]) and check_unique(pdb_df["molecule_name"]):
+        pdb_df.rename(columns={"chain_id": "molecule_name", "molecule_name": "chain_id"}, inplace=True)
+
+    pdb_molecule_list = construct_molecule_list_from_df(pdb_df)
+
+    return pdb_molecule_list
+
 
 def read_cif(file_path):
     """
@@ -174,5 +192,29 @@ def pdb_file_to_structured_system(file_path):
     box_angles = get_bounding_box_angles_from_bounding_box(box_dimensions)
 
     structured_system = StructuredSystem(molecule_list=pdb_molecule_list, box_dimensions=box_dimensions, box_angles=box_angles)
+
+    return structured_system
+
+def packmol_pdb_file_to_structured_system(file_path):
+    """
+    Reads a Packmol PDB file and returns a StructuredSystem object containing the molecular system information.
+
+    INPUT:\n
+    file_path (str): The path to the Packmol PDB file.
+
+    RETURNS:\n
+    structured_system (StructuredSystem): A StructuredSystem object containing the molecular system information from the PDB file.
+    """
+
+    pdb_molecule_list = read_packmol_pdb(file_path)
+
+    box_dimensions = get_bounding_box_from_molecule_list(pdb_molecule_list)
+
+    box_angles = get_bounding_box_angles_from_bounding_box(box_dimensions)
+
+    structured_system = StructuredSystem(molecule_list=pdb_molecule_list, box_dimensions=box_dimensions, box_angles=box_angles)
+
+    structured_system.reset_molecule_ids()
+    structured_system.reset_atom_ids()
 
     return structured_system

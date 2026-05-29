@@ -3,6 +3,7 @@ logs/
 
 #output files
 Output/
+packmol_input_files/
 
 #datafiles
 MDToolkit/data/common_pdb_files/*

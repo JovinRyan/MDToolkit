@@ -334,9 +334,31 @@ Methods:
     RETURNS:\n
     None: This method modifies the elemental properties of the atoms in place and does not return anything.
     '''
+
+    elements_dict = create_elements_dictionary()
+
+    elemental_property_cache = {}
+    elemental_keys_cache = {}
+
     for molecule in self.molecule_list:
-      for atom in molecule.atoms:
-        atom.populate_elemental_properties()
+        for atom in molecule.atoms:
+
+            element = atom.element
+
+            if element not in elemental_property_cache:
+                try:
+                    elemental_properties = elements_dict[element]
+
+                except KeyError:
+                    atom.fix_2char_element_symbol()
+                    element = atom.element
+                    elemental_properties = elements_dict[element]
+
+                elemental_property_cache[element] = elemental_properties
+                elemental_keys_cache[element] = tuple(elemental_properties.keys())
+
+            atom.elemental_properties = elemental_property_cache[element]
+            atom.elemental_properties_keys = elemental_keys_cache[element]
 
     self._elemental_properties_populated = True
 

@@ -14,6 +14,13 @@ water_box_dimensions = {
   "min_z" : 0.0, "max_z" : 100.0,
 }
 
-system = create_water_box(water_box_dimensions)
+water_box_system = create_water_box(water_box_dimensions)
 
-write_lammps_structure_file_atomic_full(system, file_name="H2O_vdw_centered.data")
+write_lammps_structure_file_atomic_full(water_box_system, "H2O_box_100by100by100.data")
+
+# water_box_packmol_file_path = "/home/jovinryanj/projects/mdtoolkit/Output/H2O_box.pdb"
+
+# df = read_pdb_packmol(water_box_packmol_file_path)
+
+
+# print(df)
