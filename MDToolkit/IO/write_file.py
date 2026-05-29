@@ -180,28 +180,3 @@ def write_lammps_structure_file_atomic_full(structured_system : StructuredSystem
 
     except Exception as e:
         print(f"Error occurred while writing LAMMPS structure file: {e}")
-
-def write_liquid_packmol_helper_file(liquid_pdb_file_path : str, box_dimensions : dict, molecule_count : int, output_file_name = "liquid.pdb", output_file_path = "./Output", tolerance : float = 2.0, packmol_helper_path = "./packmol_input_files", packmol_helper_file_name = "packmol_input.inp"):
-    '''
-    '''
-    if not os.path.exists(packmol_helper_path):
-        os.makedirs(packmol_helper_path)
-
-    full_helper_file_path = os.path.join(packmol_helper_path, packmol_helper_file_name)
-    full_output_file_path = os.path.join(output_file_path, output_file_name)
-
-    try:
-        with open(full_helper_file_path, 'w') as f:
-            f.write("# General parameters\n")
-            f.write(f"tolerance {tolerance}\n")
-            f.write("filetype pdb\n")
-            f.write(f"output {full_output_file_path}\n\n")
-
-            f.write("# Liquid molecule\n")
-            f.write(f"structure {liquid_pdb_file_path}\n")
-            f.write(f"\tnumber {molecule_count}\n")
-            f.write(f"\tinside cube {box_dimensions['min_x']} {box_dimensions['min_y']} {box_dimensions['min_z']} {box_dimensions['max_x']} {box_dimensions['max_y']} {box_dimensions['max_z']}\n")
-            f.write("end structure")
-        print(f"Packmol input file successfully written to {full_helper_file_path}")
-    except Exception as e:
-        print(f"Error occurred while writing packmol input file: {e}")

@@ -18,15 +18,57 @@ def read_pdb(file_path : str):
 
     start_index, end_index = identify_pdb_atom_indexes(file_path)
 
-    pdb_df = pd.read_csv(file_path, skiprows=int(start_index), nrows=int(end_index - start_index), header=None, sep=r'\s+', engine="python-fwf")
-    sample_line = pdb_df.iloc[0]
+    colspecs = [
+        (0, 6),    # record_type
+        (6, 11),   # atom_index
+        (12, 16),  # atom_species
+        (17, 20),  # molecule_name
+        (21, 22),  # chain_id
+        (22, 26),  # molecule_index
+        (30, 38),  # x
+        (38, 46),  # y
+        (46, 54),  # z
+        (76, 78),  # element
+    ]
 
-    pdb_df.columns = give_pdb_df_header(sample_line)
+    column_names = [
+        "atom_type",
+        "atom_index",
+        "atom_species_verbose",
+        "molecule_name",
+        "chain_id",
+        "molecule_index",
+        "x",
+        "y",
+        "z",
+        "atom_species"
+    ]
 
-    # header rectification (does not work for all cases, but is a quick fix for some common PDB formatting issues)
+    pdb_df = pd.read_fwf(
+        file_path,
+        colspecs=colspecs,
+        names=column_names,
+        skiprows=int(start_index),
+        nrows=int(end_index - start_index)
+    )
 
-    if not check_unique(pdb_df["chain_id"]) and check_unique(pdb_df["molecule_name"]):
-        pdb_df.rename(columns={"chain_id": "molecule_name", "molecule_name": "chain_id"}, inplace=True)
+    pdb_df["atom_type"] = pdb_df["atom_type"].str.strip()
+
+    pdb_df["atom_species"] = pdb_df["atom_species"].str.strip()
+
+    pdb_df["molecule_name"] = pdb_df["molecule_name"].str.strip()
+
+    pdb_df["chain_id"] = pdb_df["chain_id"].astype(str).str.strip()
+
+    pdb_df["atom_index"] = pdb_df["atom_index"].astype(int)
+
+    pdb_df["molecule_index"] = pdb_df["molecule_index"].astype(int)
+
+    pdb_df["x"] = pdb_df["x"].astype(float)
+
+    pdb_df["y"] = pdb_df["y"].astype(float)
+
+    pdb_df["z"] = pdb_df["z"].astype(float)
 
     pdb_molecule_list = construct_molecule_list_from_df(pdb_df)
 
