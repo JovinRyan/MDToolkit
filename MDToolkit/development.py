@@ -1,17 +1,15 @@
 import pandas as pd
 from MDToolkit.custom_systems.liquids import create_water_box, create_ionic_liquid_box
+from MDToolkit.custom_systems.membranes import cif_file_to_monolayer_membrane
 from MDToolkit.IO.write_file import write_lammps_structure_file_atomic_full
 from MDToolkit.IO.read_file import pdb_file_to_structured_system
 
-file_path_OMIM = "/home/jovinryanj/projects/mdtoolkit/MDToolkit/data/my_pdb_files/OMIM.pdb"
-file_path_PF6 = "/home/jovinryanj/projects/mdtoolkit/MDToolkit/data/my_pdb_files/PF6.pdb"
+C_cif_file_path = "/home/jovinryanj/projects/mdtoolkit/MDToolkit/data/cif_files/graphene.cif"
+MoS2_cif_file_path = "/home/jovinryanj/projects/mdtoolkit/MDToolkit/data/cif_files/MoS2.cif"
 
-box_dimensions = {
-  "min_x" : 0.0, "max_x" : 50,
-  "min_y" : 0.0, "max_y" : 50,
-  "min_z" : 0.0, "max_z" : 50,
-}
+graphene_monolayer = cif_file_to_monolayer_membrane(C_cif_file_path, max_dimension=[50, 50, 50])
 
-OMIM_PF6_system = create_ionic_liquid_box(box_dimensions, file_path_OMIM, file_path_PF6, ionic_liquid_density = 1.24)
+MoS2_monolayer = cif_file_to_monolayer_membrane(MoS2_cif_file_path, max_dimension=[50, 50, 50])
 
-write_lammps_structure_file_atomic_full(OMIM_PF6_system, file_name = "OMIMPF6_50by50by50.data")
+write_lammps_structure_file_atomic_full(graphene_monolayer, "graphene_50by50_membrane.data")
+write_lammps_structure_file_atomic_full(MoS2_monolayer, "MoS2_50by50_membrane.data")
