@@ -16,7 +16,10 @@ def create_water_box(box_dimensions: dict, H2O_pbd_file_path=os.path.join(PDB_FI
 
     z_len = box_dimensions["max_z"] - box_dimensions["min_z"]
 
-    H2O_system = pdb_file_to_structured_system(H2O_pbd_file_path)
+    try:
+        H2O_system = pdb_file_to_structured_system(H2O_pbd_file_path)
+    except:
+        H2O_system = packmol_pdb_file_to_structured_system(H2O_pbd_file_path)
 
     H2O_system.populate_elemental_properties_for_all_atoms()
 
@@ -49,7 +52,7 @@ def create_water_box(box_dimensions: dict, H2O_pbd_file_path=os.path.join(PDB_FI
             f.write("# Liquid molecule\n")
             f.write(f"structure {H2O_pbd_file_path}\n")
             f.write(f"\tnumber {num_molecules}\n")
-            f.write(f"\tinside cube {box_dimensions['min_x']} {box_dimensions['min_y']} {box_dimensions['min_z']} {box_dimensions['max_x']} {box_dimensions['max_y']} {box_dimensions['max_z']}\n")
+            f.write(f"\tinside box {box_dimensions['min_x']} {box_dimensions['min_y']} {box_dimensions['min_z']} {box_dimensions['max_x']} {box_dimensions['max_y']} {box_dimensions['max_z']}\n")
             f.write("end structure")
         print(f"Packmol input file successfully written to {full_helper_file_path}")
     except Exception as e:
@@ -123,13 +126,13 @@ def create_ionic_liquid_box(box_dimensions : dict, cation_pdb_file_path : str, a
             f.write("# Cation\n")
             f.write(f"structure {cation_pdb_file_path}\n")
             f.write(f"\tnumber {num_molecules}\n")
-            f.write(f"\tinside cube {box_dimensions['min_x']} {box_dimensions['min_y']} {box_dimensions['min_z']} {box_dimensions['max_x']} {box_dimensions['max_y']} {box_dimensions['max_z']}\n")
+            f.write(f"\tinside box {box_dimensions['min_x']} {box_dimensions['min_y']} {box_dimensions['min_z']} {box_dimensions['max_x']} {box_dimensions['max_y']} {box_dimensions['max_z']}\n")
             f.write("end structure\n\n")
 
             f.write("# Anion\n")
             f.write(f"structure {anion_pdb_file_path}\n")
             f.write(f"\tnumber {num_molecules}\n")
-            f.write(f"\tinside cube {box_dimensions['min_x']} {box_dimensions['min_y']} {box_dimensions['min_z']} {box_dimensions['max_x']} {box_dimensions['max_y']} {box_dimensions['max_z']}\n")
+            f.write(f"\tinside box {box_dimensions['min_x']} {box_dimensions['min_y']} {box_dimensions['min_z']} {box_dimensions['max_x']} {box_dimensions['max_y']} {box_dimensions['max_z']}\n")
             f.write("end structure")
         print(f"Packmol input file successfully written to {full_helper_file_path}")
     except Exception as e:

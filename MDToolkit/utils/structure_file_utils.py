@@ -3,6 +3,7 @@ import pandas as pd
 import math
 import copy
 from MDToolkit.utils.misc_utils import is_real_float, is_strict_int
+from MDToolkit.paths import ELEMENTS_CSV
 # from MDToolkit.data.objects import Atom, Molecule, StructuredSystem
 # import mdtoolkit.logging as log
 
@@ -21,7 +22,7 @@ def estimate_number_density(density: float, molecular_weight : float):
 
     return number_density
 
-def read_elements_csv(file_path = "/home/jovinryanj/projects/mdtoolkit/MDToolkit/data/PubChemElements_all.csv"):
+def read_elements_csv(file_path = ELEMENTS_CSV):
     '''
     INPUT: \n
     file_path (str) : The path to the CSV file containing elemental data. Default is set to a common location within the MDToolkit project.\n
@@ -33,7 +34,7 @@ def read_elements_csv(file_path = "/home/jovinryanj/projects/mdtoolkit/MDToolkit
 
     return elements_df
 
-def create_elements_dictionary(file_path = "/home/jovinryanj/projects/mdtoolkit/MDToolkit/data/PubChemElements_all.csv"):
+def create_elements_dictionary(file_path = ELEMENTS_CSV):
     '''
     INPUT: \n
     file_path (str) : The path to the CSV file containing elemental data. Default is set to a common location within the MDToolkit project.\n
