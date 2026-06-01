@@ -1,7 +1,8 @@
 import os
 from MDToolkit.data.objects import StructuredSystem
+from MDToolkit.paths import OUTPUT
 
-def write_pdb_file_from_StructuredSystem(structured_system: StructuredSystem, file_name="output.pdb", file_path="./Output"):
+def write_pdb_file_from_StructuredSystem(structured_system: StructuredSystem, file_name="output.pdb", file_path=OUTPUT):
     '''
     Writes a PDB file from a StructuredSystem object.
 
@@ -95,7 +96,7 @@ def write_pdb_file_from_StructuredSystem(structured_system: StructuredSystem, fi
     except Exception as e:
         print(f"Error occurred while writing PDB file: {e}")
 
-def write_lammps_structure_file_atomic_full(structured_system : StructuredSystem, file_name="output.data", file_path="./Output"):
+def write_lammps_structure_file_atomic_full(structured_system : StructuredSystem, file_name = "output.data", file_path = OUTPUT):
     '''
     Writes a LAMMPS structure file from a StructuredSystem object.
 

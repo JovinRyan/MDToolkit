@@ -4,9 +4,9 @@ import subprocess
 import os
 from MDToolkit.utils.structure_file_utils import estimate_number_density
 from MDToolkit.IO.read_file import pdb_file_to_structured_system, packmol_pdb_file_to_structured_system
-from MDToolkit.data.objects import StructuredSystem, Molecule, Atom
+from MDToolkit.paths import PDB_FILES, PACKMOL_INPUT_FILES, OUTPUT
 
-def create_water_box(box_dimensions: dict, H2O_pbd_file_path="/home/jovinryanj/projects/mdtoolkit/MDToolkit/data/common_pdb_files/H2O.pdb", packmol_helper_file_name = "H2O_box_packmol_helper.inp", packmol_helper_path = "/home/jovinryanj/projects/mdtoolkit/packmol_input_files"):
+def create_water_box(box_dimensions: dict, H2O_pbd_file_path=os.path.join(PDB_FILES, "H2O.pdb"), packmol_helper_file_name = "H2O_box_packmol_helper.inp", packmol_helper_path = PACKMOL_INPUT_FILES, water_box_output_file_name = "H2O_box.pdb"):
     '''
     '''
 
@@ -30,8 +30,8 @@ def create_water_box(box_dimensions: dict, H2O_pbd_file_path="/home/jovinryanj/p
     num_molecules = math.floor(estimate_number_density(density=1.0, molecular_weight=molecular_weight_H2O) * x_len * y_len * z_len)
 
     tolerance = 1.4 # vdw radius for water
-    output_file_name = "H2O_box.pdb"
-    output_file_path = "./Output"
+    output_file_name = water_box_output_file_name
+    output_file_path = OUTPUT
 
     if not os.path.exists(packmol_helper_path):
         os.makedirs(packmol_helper_path)
@@ -75,8 +75,8 @@ def create_water_box(box_dimensions: dict, H2O_pbd_file_path="/home/jovinryanj/p
 
     return water_box_system
 
-def create_ionic_liquid_box(box_dimensions : dict, cation_pdb_file_path : str, anion_pdb_file_path : str, ionic_liquid_density : float = 1.0, packmol_helper_file_name = "ionic_liquid_box_packmol_helper.inp", packmol_helper_path = "/home/jovinryanj/projects/mdtoolkit/packmol_input_files",
-                            ionic_liquid_output_file_path : str = "./Output", ionic_liquid_output_file_name : str = "ionic_liquid_box.pdb"):
+def create_ionic_liquid_box(box_dimensions : dict, cation_pdb_file_path : str, anion_pdb_file_path : str, ionic_liquid_density : float = 1.0, packmol_helper_file_name = "ionic_liquid_box_packmol_helper.inp", packmol_helper_path = PACKMOL_INPUT_FILES,
+                            ionic_liquid_output_file_path = OUTPUT, ionic_liquid_output_file_name : str = "ionic_liquid_box.pdb"):
     """
     """
     x_len = box_dimensions["max_x"] - box_dimensions["min_x"]

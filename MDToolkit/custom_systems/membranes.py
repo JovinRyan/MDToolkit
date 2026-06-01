@@ -4,7 +4,7 @@ from MDToolkit.utils.cutom_systems_utils import get_min_periodic_image_number
 from MDToolkit.utils.structure_file_utils import create_periodic_images, delete_atoms_outside_region
 
 
-def cif_file_to_monolayer_membrane(unit_cell_file_path : str, max_dimension = [100, 100, 100], min_dimension = [0, 0, 0], rotation_angles = [90, 0, 0], shrink_buffer = [1.0, 1.0, 0.0]) -> StructuredSystem:
+def cif_file_to_monolayer_membrane(unit_cell_file_path : str, max_dimension = [100, 100, 100], min_dimension = [0, 0, 0], rotation_angles = [90, 0, 0], shrink_buffer = [2.0, 0.0, 0.0]) -> StructuredSystem:
     """
     Reads a CIF file, creates a structured system, generates periodic images to create a larger system, deletes atoms outside a specified region to isolate a monolayer membrane, rotates the system, and writes the resulting monolayer membrane to a PDB file.
 

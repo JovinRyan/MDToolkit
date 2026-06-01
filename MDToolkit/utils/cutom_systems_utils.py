@@ -110,20 +110,5 @@ def create_pore_circular(structured_system, radius=10.0, origin=[0, 0], min_radi
     return structured_system, np.pi * current_radius**2
 
 
-def get_cif_file_cell_lengths(file_path):
-    '''
-    '''
-
-    with open(file_path, 'r') as f:
-        lines = f.readlines()
-
-        for i in range(len(lines)):
-            match lines[i].strip().split()[0]:
-                case "_cell_length_a" : len_a = float(lines[i].strip().split()[1])
-                case "_cell_length_b" : len_b = float(lines[i].strip().split()[1])
-                case "_cell_length_c" : len_c = float(lines[i].strip().split()[1])
-
-    return len_a, len_b, len_c
-
 
 
