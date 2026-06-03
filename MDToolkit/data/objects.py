@@ -1,6 +1,7 @@
 import pandas as pd
 import math
 import numpy as np
+from bidict import bidict
 from scipy.spatial import cKDTree
 from scipy.spatial.transform import Rotation as R
 from MDToolkit.utils.misc_utils import count_decimals
@@ -108,6 +109,8 @@ Methods:
     self.id = molecule_id
     self.name = molecule_name
     self.atoms = atoms
+    self.bonds = []
+    self.angles = []
 
   def __repr__(self):
     return f"Molecule(id={self.id}, name='{self.name}', atoms={self.atoms})"
@@ -198,6 +201,10 @@ Methods:
     displacement_vector = [-min_coords[i] if min_coords[i] < 0 else 0 for i in range(3)]
     for atom in self.atoms:
       atom.position = [atom.position[i] + displacement_vector[i] for i in range(3)]
+
+  # def create_bonds_from_molecule_bond_template(self, bond_template):
+
+
 
 
 class StructuredSystem:

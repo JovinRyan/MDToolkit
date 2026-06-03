@@ -131,7 +131,7 @@ def write_lammps_structure_file_atomic_full(structured_system : StructuredSystem
 
         element_to_type = {
             element: i + 1
-            for i, element in enumerate(sorted(element_set))
+            for i, element in enumerate(element_set)
         }
 
         if not structured_system.check_if_all_atoms_have_elemental_properties():

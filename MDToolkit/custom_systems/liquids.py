@@ -71,10 +71,10 @@ def create_water_box(box_dimensions: dict, H2O_pbd_file_path=os.path.join(PDB_FI
                     break
 
     try:
-        water_box_system = packmol_pdb_file_to_structured_system(output_path)
+        water_box_system = pdb_file_to_structured_system(output_path)
     except Exception as e:
         print(f"Error occurred while reading packmol output file: {e}")
-        water_box_system = pdb_file_to_structured_system(output_path)
+        water_box_system = packmol_pdb_file_to_structured_system(output_path)
 
     return water_box_system
 
