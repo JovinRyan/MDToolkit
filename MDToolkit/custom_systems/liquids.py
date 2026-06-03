@@ -36,6 +36,9 @@ def create_water_box(box_dimensions: dict, H2O_pbd_file_path=os.path.join(PDB_FI
     output_file_name = water_box_output_file_name
     output_file_path = OUTPUT
 
+    if not os.path.exists(output_file_path):
+        os.makedirs(output_file_path)
+
     if not os.path.exists(packmol_helper_path):
         os.makedirs(packmol_helper_path)
 

@@ -2,8 +2,9 @@ import scipy.constants as sc
 import pandas as pd
 import math
 import copy
+import json
 from MDToolkit.utils.misc_utils import is_real_float, is_strict_int
-from MDToolkit.paths import ELEMENTS_CSV
+from MDToolkit.paths import ELEMENTS_CSV, MOLECULAR_DATA_JSON
 # from MDToolkit.data.objects import Atom, Molecule, StructuredSystem
 # import mdtoolkit.logging as log
 
@@ -376,3 +377,19 @@ def delete_atoms_outside_region(structured_system, region_bounds : dict, buffer 
 
 
     return new_structured_system
+
+def read_molecular_data_json_entry(alias_key : str, file_path = MOLECULAR_DATA_JSON):
+    '''
+    '''
+    with open(file_path, 'r') as f:
+        json_data = json.load(f)
+    
+    molecule_name = json_data["aliases"][alias_key]
+
+    return json_data["molecules"][molecule_name]
+
+def get_alias_key_from_file_path(file_path):
+    '''
+    '''
+
+    return file_path.split("/")[-1].split(".")[0]

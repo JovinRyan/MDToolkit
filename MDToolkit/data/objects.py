@@ -113,7 +113,7 @@ Methods:
     self.angles = []
 
   def __repr__(self):
-    return f"Molecule(id={self.id}, name='{self.name}', atoms={self.atoms})"
+    return f"Molecule(id={self.id}, name='{self.name}', atoms={self.atoms}, bonds={self.bonds}, angles={self.angles})"
 
   def get_all_distances_to(self, coordinate):
     '''
@@ -201,11 +201,15 @@ Methods:
     displacement_vector = [-min_coords[i] if min_coords[i] < 0 else 0 for i in range(3)]
     for atom in self.atoms:
       atom.position = [atom.position[i] + displacement_vector[i] for i in range(3)]
-
-  # def create_bonds_from_molecule_bond_template(self, bond_template):
-
-
-
+  
+  def populate_bonds_from_molecular_data(self, molecular_data):
+    '''
+    '''
+    bonds_list = []
+    for i in range(len(molecular_data["bond_atom_indices"])):
+      bonds_list.append([i+1, molecular_data["bond_types"][i], self.atoms[molecular_data["bond_atom_indices"][i][0]].id, self.atoms[molecular_data["bond_atom_indices"][i][1]].id])
+    
+    self.bonds = bonds_list
 
 class StructuredSystem:
   '''
@@ -490,6 +494,32 @@ Methods:
   def get_box_lengths(self):
     return self.box_dimensions["max_x"] - self.box_dimensions["min_x"], self.box_dimensions["max_y"] - self.box_dimensions["min_y"], self.box_dimensions["max_z"] - self.box_dimensions["min_z"]
 
+  def populate_atom_charges(self, charge_dict: dict):
+      get_charge = charge_dict.get
+
+      for molecule in self.molecule_list:
+          for atom in molecule.atoms:
+              charge = get_charge(atom.element)
+              if charge is not None:
+                  atom.charge = charge
+
+  def get_bond_counts(self):
+    """
+    Returns:
+        tuple: (number_of_bonds, number_of_bond_types)
+    """
+
+    num_bonds = 0
+    bond_types = set()
+
+    for molecule in self.molecule_list:
+        num_bonds += len(molecule.bonds)
+
+        for bond in molecule.bonds:
+            bond_types.add(bond[1])
+
+    return num_bonds, len(bond_types)
+  
 def construct_molecule_list_from_df(system_df):
     '''
     Constructs a list of Molecule objects from a pandas DataFrame containing molecular system information.

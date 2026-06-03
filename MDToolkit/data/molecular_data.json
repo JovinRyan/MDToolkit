@@ -1,33 +1,24 @@
 {
-  "Water": {
-    "chemical_formula": "H2O",
-    "density": 1.0,
-    "bond_types": [
-      1,
-      1
-    ],
-    "bond_atom_indices": [
-      [
-        1,
-        2
+  "molecules": {
+    "Water": {
+      "chemical_formula": "H2O",
+      "density": 1.0,
+      "bond_types": [1, 1],
+      "bond_atom_indices": [
+        [0, 1],
+        [0, 2]
       ],
-      [
-        1,
-        3
-      ]
-    ],
-    "bond_lengths": [
-      0.980,
-      0.980
-    ],
-    "angle_types": [
-      1
-    ],
-    "angle_bond_indices": [
-      2,
-      1,
-      3
-    ]
+      "bond_lengths": [0.980, 0.980],
+      "angle_types": [1],
+      "angle_bond_indices": [[1, 0, 2]]
+    },
+
+    "OMIM": {}
   },
-  "OMIM": {}
+
+  "aliases": {
+    "H2O": "Water",
+    "water": "Water",
+    "Water": "Water"
+  }
 }

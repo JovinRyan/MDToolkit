@@ -8,36 +8,21 @@ from MDToolkit.IO.write_file import write_lammps_structure_file_atomic_full, wri
 from MDToolkit.IO.read_file import pdb_file_to_structured_system
 from MDToolkit.paths import CIF_FILES, PDB_FILES
 
-C_cif_file_path = os.path.join(CIF_FILES, "graphene.cif")
-OMIM_pdb_file_path = os.path.join(PDB_FILES, "OMIM.pdb")
-PF6_pdb_file_path = os.path.join(PDB_FILES, "PF6.pdb")
-
 water_box_bounds = {
-  "min_x" : -90.0, "max_x" : -4.0,
-  "min_y" : -25.0, "max_y" : 25.0,
-  "min_z" : -25.0, "max_z" : 25.0
+  "min_x" : 0.0, "max_x" : 30.0,
+  "min_y" : 0.0, "max_y" : 30.0,
+  "min_z" : 0.0, "max_z" : 30.0
 }
 
-IL_box_bounds = {
-  "min_x" : 4.0, "max_x" : 90.0,
-  "min_y" : -25.0, "max_y" : 25.0,
-  "min_z" : -25.0, "max_z" : 25.0
+charge_dict = {
+    "H" : 0.6791, # TIP4P
+    "O" : -1.3582 # TIP4P
 }
 
 water_box_system = create_water_box(water_box_bounds)
-OMIM_PF6_box_system = create_ionic_liquid_box(IL_box_bounds, OMIM_pdb_file_path, PF6_pdb_file_path, 1.24)
 
-graphene_monolayer = cif_file_to_monolayer_membrane(C_cif_file_path, max_dimension=[52, 52, 50])
-graphene_monolayer_w_pore = create_pore_circular(graphene_monolayer, 5.0)[0]
+water_box_system.populate_elemental_properties_for_all_atoms()
+water_box_system.populate_atom_charges(charge_dict)
 
-graphene_membrane_copy = copy.deepcopy(graphene_monolayer_w_pore)
-
-write_lammps_structure_file_atomic_full(graphene_membrane_copy, "graphene_50by50_membrane_w_pore.data")
-
-
-graphene_monolayer_w_pore.combine_with_other_structured_system(water_box_system)
-
-graphene_monolayer_w_pore.combine_with_other_structured_system(OMIM_PF6_box_system)
-
-write_lammps_structure_file_atomic_full(graphene_monolayer_w_pore, "H2O_GRAPHENE_OMIMPF6_system.data")
-write_pdb_file_from_StructuredSystem(graphene_monolayer_w_pore, "H2O_GRAPHENE_OMIMPF6_system.pdb")
+write_lammps_structure_file_atomic_full(water_box_system, "water_box_3nmby3nmby3nm.data")
+write_pdb_file_from_StructuredSystem(water_box_system, "water_box_3nmby3nmby3nm.pdb")
