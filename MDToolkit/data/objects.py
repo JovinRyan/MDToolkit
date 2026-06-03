@@ -202,14 +202,23 @@ Methods:
     for atom in self.atoms:
       atom.position = [atom.position[i] + displacement_vector[i] for i in range(3)]
   
-  def populate_bonds_from_molecular_data(self, molecular_data):
+  def populate_bonds_from_molecular_data(self, molecular_data, bond_count = 1):
     '''
     '''
     bonds_list = []
     for i in range(len(molecular_data["bond_atom_indices"])):
-      bonds_list.append([i+1, molecular_data["bond_types"][i], self.atoms[molecular_data["bond_atom_indices"][i][0]].id, self.atoms[molecular_data["bond_atom_indices"][i][1]].id])
+      bonds_list.append([i + bond_count, molecular_data["bond_types"][i], self.atoms[molecular_data["bond_atom_indices"][i][0]].id, self.atoms[molecular_data["bond_atom_indices"][i][1]].id])
     
     self.bonds = bonds_list
+
+  def populate_angles_from_molecular_data(self, molecular_data, angle_count = 1):
+    '''
+    '''
+    angles_list = []
+    for i in range(len(molecular_data["angle_bond_indices"])):
+      angles_list.append([i + angle_count, molecular_data["angle_types"][i], self.atoms[molecular_data["angle_bond_indices"][i][0]].id, self.atoms[molecular_data["angle_bond_indices"][i][1]].id, self.atoms[molecular_data["angle_bond_indices"][i][2]].id])
+
+    self.angles = angles_list
 
 class StructuredSystem:
   '''
@@ -504,10 +513,10 @@ Methods:
                   atom.charge = charge
 
   def get_bond_counts(self):
-    """
+    '''
     Returns:
         tuple: (number_of_bonds, number_of_bond_types)
-    """
+    '''
 
     num_bonds = 0
     bond_types = set()
@@ -519,6 +528,43 @@ Methods:
             bond_types.add(bond[1])
 
     return num_bonds, len(bond_types)
+  
+  def get_angle_counts(self):
+    '''
+    Returns:
+        tuple: (number_of_angles, number_of_angle_types)
+    '''
+
+    num_angles = 0
+    angle_types = set()
+
+    for molecule in self.molecule_list:
+      num_angles += len(molecule.angles)
+
+      for angle in molecule.angles:
+        angle_types.add(angle[1])
+    
+    return num_angles, len(angle_types)
+  
+  def reset_bond_ids(self):
+    '''
+    '''
+    bond_id = 1
+
+    for molecule in self.molecule_list:
+      for bond in molecule.bonds:
+        bond[0] = bond_id 
+        bond_id += 1
+
+  def reset_angle_ids(self):
+    '''
+    '''
+    angle_id = 1
+
+    for molecule in self.molecule_list:
+      for angle in molecule.angles:
+        angle[0] = angle_id 
+        angle_id += 1
   
 def construct_molecule_list_from_df(system_df):
     '''

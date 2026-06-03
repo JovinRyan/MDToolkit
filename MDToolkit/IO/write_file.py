@@ -123,6 +123,7 @@ def write_lammps_structure_file_atomic_full(structured_system : StructuredSystem
         num_atoms = len(atom_records)
 
         num_bonds, num_bond_types = structured_system.get_bond_counts()
+        num_angles, num_angle_types = structured_system.get_angle_counts()
 
         element_set = {
             atom.element
@@ -152,8 +153,15 @@ def write_lammps_structure_file_atomic_full(structured_system : StructuredSystem
         lines.append(f"{num_atoms} atoms\n")
         if num_bonds > 0:
             lines.append(f"{num_bonds} bonds\n")
+        if num_angles > 0:
+            lines.append(f"{num_angles} angles\n")
         lines.append(f"{num_atomic_types} atom types\n")
-        if num_bonds > 0:
+        if num_bonds > 0 and num_angles > 0:
+            lines.append(f"{num_bond_types} bond types\n")
+            lines.append(f"{num_angle_types} angle types\n\n")
+        elif num_bonds == 0 and num_angles > 0:
+            lines.append(f"{num_angle_types} angle types\n\n")
+        elif num_bonds > 0 and num_angles == 0:
             lines.append(f"{num_bond_types} bond types\n\n")
         else:
             lines.append("\n")
@@ -187,6 +195,13 @@ def write_lammps_structure_file_atomic_full(structured_system : StructuredSystem
             for molecule in structured_system.molecule_list:
                 for bond in molecule.bonds:
                     lines.append(f"{bond[0]} {bond[1]} {bond[2]} {bond[3]}\n")
+
+        if num_angles > 0:
+            lines.append("\n")
+            lines.append("Angles\n\n")
+            for molecule in structured_system.molecule_list:
+                for angle in molecule.angles:
+                    lines.append(f"{angle[0]} {angle[1]} {angle[2]} {angle[3]} {angle[4]}\n")
 
 
         with open(full_file_path, 'w') as f:
