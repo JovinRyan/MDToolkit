@@ -393,3 +393,25 @@ def get_alias_key_from_file_path(file_path):
     '''
 
     return file_path.split("/")[-1].split(".")[0]
+
+
+def get_lammps_data_file_indexes(file_path):
+    '''
+    '''
+
+    atoms_start = 0
+    atoms_stop = 0
+    bonds_start = 0
+    bonds_stop = 0
+    angles_start = 0
+    angles_stop = 0
+
+    try:
+        with open(file_path, "r") as f:
+            lines = f.readlines()
+            start_index_ATOM = next((i for i, line in enumerate(lines) if line.startswith("Atoms ")), float('inf')) + 1
+
+            print(lines(start_index_ATOM))
+
+    except Exception as e:
+        print(f"Error in reading LAMMPS Data File: {e}")

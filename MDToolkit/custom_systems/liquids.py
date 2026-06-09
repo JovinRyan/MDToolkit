@@ -6,9 +6,16 @@ from MDToolkit.utils.structure_file_utils import estimate_number_density
 from MDToolkit.IO.read_file import pdb_file_to_structured_system, packmol_pdb_file_to_structured_system
 from MDToolkit.paths import PDB_FILES, PACKMOL_INPUT_FILES, OUTPUT
 
-def create_water_box(box_dimensions: dict, H2O_pbd_file_path=os.path.join(PDB_FILES, "H2O.pdb"), packmol_helper_file_name = "H2O_box_packmol_helper.inp", packmol_helper_path = PACKMOL_INPUT_FILES, water_box_output_file_name = "H2O_box.pdb"):
+def create_water_box(box_dimensions: dict, H2O_geometry = None, packmol_helper_file_name = "H2O_box_packmol_helper.inp", packmol_helper_path = PACKMOL_INPUT_FILES, water_box_output_file_name = "H2O_box.pdb"):
     '''
     '''
+
+    if H2O_geometry is not None:
+        H2O_pbd_file_path = os.path.join(PDB_FILES, "H2O_" + H2O_geometry + ".pdb")
+        print("H2O Template File: " + H2O_pbd_file_path)
+    else:
+        H2O_pbd_file_path=os.path.join(PDB_FILES, "H2O.pdb")
+        print("H2O Template File: " + H2O_pbd_file_path)
 
     x_len = box_dimensions["max_x"] - box_dimensions["min_x"]
 

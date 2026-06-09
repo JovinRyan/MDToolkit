@@ -17,10 +17,6 @@
           2
         ]
       ],
-      "bond_lengths": [
-        0.980,
-        0.980
-      ],
       "angle_types": [
         1
       ],
@@ -225,7 +221,6 @@
           36
         ]
       ],
-      "bond_lengths": [],
       "angle_types": [],
       "angle_bond_indices": [],
       "net_charge": 1

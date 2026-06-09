@@ -260,3 +260,9 @@ def packmol_pdb_file_to_structured_system(file_path):
     structured_system.reset_atom_ids()
 
     return structured_system
+
+def lammps_data_file_to_structured_system(file_path):
+    '''
+    '''
+    get_lammps_data_file_indexes(file_path)
+
