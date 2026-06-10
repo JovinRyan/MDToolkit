@@ -290,7 +290,6 @@ def lammps_data_file_to_structured_system(file_path):
         box_dims_dict.update(entry_min)
         box_dims_dict.update(entry_max)
         
-    print(box_dims_dict)
 
     symbol_inttype_mapping = {}
     for atom_type, mass in mass_inttype_mapping.items():

@@ -54,3 +54,10 @@ def file_path_to_elements_and_stoichiometries(file_path : str):
             del stoich_list[-2]
 
     return element_list, stoich_list
+
+def sort_atom_list_by_index(atom_list : list):
+    '''
+    '''
+    atom_list.sort(key=lambda atom : atom.id)
+
+    return atom_list

@@ -430,7 +430,6 @@ def get_lammps_data_file_indexes(file_path)->dict:
             box_dims_start = next((i for i, line in enumerate(lines) if line.endswith("xlo xhi\n")), float('inf'))
             box_dims_stop = next((i for i, line in enumerate(lines) if line.endswith("zlo zhi\n")), float('inf'))
             
-
     except Exception as e:
         print(f"Error in reading LAMMPS Data File: {e}")
 
