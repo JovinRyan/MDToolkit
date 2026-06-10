@@ -395,7 +395,7 @@ def get_alias_key_from_file_path(file_path):
     return file_path.split("/")[-1].split(".")[0]
 
 
-def get_lammps_data_file_indexes(file_path):
+def get_lammps_data_file_indexes(file_path)->dict:
     '''
     '''
 
@@ -405,13 +405,33 @@ def get_lammps_data_file_indexes(file_path):
     bonds_stop = 0
     angles_start = 0
     angles_stop = 0
+    masses_start = 0
+    masses_stop = 0
 
     try:
         with open(file_path, "r") as f:
             lines = f.readlines()
-            start_index_ATOM = next((i for i, line in enumerate(lines) if line.startswith("Atoms ")), float('inf')) + 1
+            atoms_count_id = next((i for i, line in enumerate(lines) if line.endswith("atoms\n")), float('inf'))
+            bonds_count_id = next((i for i, line in enumerate(lines) if line.endswith("bonds\n")), float('inf'))
+            angles_count_id = next((i for i, line in enumerate(lines) if line.endswith("angles\n")), float('inf'))
+            
+            atoms_start = next((i for i, line in enumerate(lines) if line.startswith("Atoms")), float('inf')) + 2
+            atoms_stop = int(lines[atoms_count_id].split(" ")[0]) + atoms_start - 1
 
-            print(lines(start_index_ATOM))
+            bonds_start = next((i for i, line in enumerate(lines) if line.startswith("Bonds")), float('inf')) + 2
+            bonds_stop = int(lines[bonds_count_id].split(" ")[0]) + bonds_start - 1
+
+            angles_start = next((i for i, line in enumerate(lines) if line.startswith("Angles")), float('inf')) + 2
+            angles_stop = int(lines[angles_count_id].split(" ")[0]) + angles_start - 1
+
+            masses_start = next((i for i, line in enumerate(lines) if line.endswith("zlo zhi\n")), float('inf')) + 4
+            masses_stop = next((i for i, line in enumerate(lines) if line.startswith("Atoms")), float('inf')) - 2
+
+            box_dims_start = next((i for i, line in enumerate(lines) if line.endswith("xlo xhi\n")), float('inf'))
+            box_dims_stop = next((i for i, line in enumerate(lines) if line.endswith("zlo zhi\n")), float('inf'))
+            
 
     except Exception as e:
         print(f"Error in reading LAMMPS Data File: {e}")
+
+    return {"atoms" : (atoms_start, atoms_stop), "bonds" : (bonds_start, bonds_stop), "angles" : (angles_start, angles_stop), "masses" : (masses_start, masses_stop), "box_dims" : (box_dims_start, box_dims_stop)}

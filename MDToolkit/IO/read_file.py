@@ -2,7 +2,7 @@ import pandas as pd
 from itertools import groupby
 from MDToolkit.utils.structure_file_utils import *
 from MDToolkit.utils.misc_utils import check_unique, is_real_float, is_strict_int
-from MDToolkit.data.objects import *
+from MDToolkit.data.objects import StructuredSystem, Atom, Molecule
 
 
 def read_pdb(file_path : str):
@@ -264,5 +264,53 @@ def packmol_pdb_file_to_structured_system(file_path):
 def lammps_data_file_to_structured_system(file_path):
     '''
     '''
-    get_lammps_data_file_indexes(file_path)
+    indices_dict = get_lammps_data_file_indexes(file_path)
+    atom_indices = indices_dict["atoms"]
+    bond_indices = indices_dict["bonds"]
+    angle_indices = indices_dict["angles"]
+    mass_indices = indices_dict["masses"]
+    box_dims_indices = indices_dict["box_dims"]
 
+    elemental_data_df = read_elements_csv()
+
+    with open(file_path, "r") as f:
+        lines = f.readlines()
+        mass_lines = lines[mass_indices[0]:mass_indices[1] + 1]
+        box_dims_lines = lines[box_dims_indices[0]:box_dims_indices[1] + 1]
+
+    mass_inttype_mapping = {}
+    for i in range(len(mass_lines)):
+        entry = {int(mass_lines[i].strip().split(" ")[0]) : float(mass_lines[i].strip().split(" ")[1])}
+        mass_inttype_mapping.update(entry)
+    
+    box_dims_dict = {}
+    for i in range(len(box_dims_lines)):
+        entry_min = {"min_" + box_dims_lines[i].strip().split()[2][0] : float(box_dims_lines[i].strip().split()[0])}
+        entry_max = {"max_" + box_dims_lines[i].strip().split()[2][0] : float(box_dims_lines[i].strip().split()[1])}
+        box_dims_dict.update(entry_min)
+        box_dims_dict.update(entry_max)
+        
+    print(box_dims_dict)
+
+    symbol_inttype_mapping = {}
+    for atom_type, mass in mass_inttype_mapping.items():
+        closest_idx = (elemental_data_df["AtomicMass"] - mass).abs().idxmin()
+        symbol = elemental_data_df.loc[closest_idx, "Symbol"]
+        symbol_inttype_mapping[atom_type] = symbol
+
+    atom_cols = ["atom_id", "mol_id", "type", "charge", "x", "y", "z", "flag1", "flag2", "flag3"]
+    atoms_df = pd.read_csv(file_path, sep = " ", skiprows = atom_indices[0], nrows = atom_indices[1]-atom_indices[0] + 1, names = atom_cols)
+    atoms_df = atoms_df.sort_values(by = ["mol_id", "atom_id"]).reset_index(drop = True)
+    atoms_df.drop(["flag1", "flag2", "flag3"], axis = 1)
+
+    molecule_list = []
+
+    for mol_id, molecule_df in atoms_df.groupby("mol_id"):
+        molecule_df.reset_index(inplace = True, drop = True)
+        atoms_list = []
+        for i in range(len(molecule_df)):
+            atoms_list.append(Atom(id = int(molecule_df.iloc[i]["atom_id"]), element = symbol_inttype_mapping[molecule_df.iloc[i]["type"]], position=[molecule_df.iloc[i]["x"], molecule_df.iloc[i]["y"], molecule_df.iloc[i]["z"]], charge=molecule_df.iloc[i]["charge"]))         
+        
+        molecule_list.append(Molecule(molecule_id=mol_id,molecule_name= "ABC", atoms=atoms_list))
+
+    return StructuredSystem(molecule_list = molecule_list, box_dimensions = box_dims_dict)
