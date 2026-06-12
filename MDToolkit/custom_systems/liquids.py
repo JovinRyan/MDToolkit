@@ -1,14 +1,18 @@
 import numpy as np
 import math
 import subprocess
+import random
 import os
 from MDToolkit.utils.structure_file_utils import estimate_number_density
 from MDToolkit.IO.read_file import pdb_file_to_structured_system, packmol_pdb_file_to_structured_system
 from MDToolkit.paths import PDB_FILES, PACKMOL_INPUT_FILES, OUTPUT
 
-def create_water_box(box_dimensions: dict, H2O_geometry = None, packmol_helper_file_name = "H2O_box_packmol_helper.inp", packmol_helper_path = PACKMOL_INPUT_FILES, water_box_output_file_name = "H2O_box.pdb"):
+def create_water_box(box_dimensions: dict, H2O_geometry = None, packmol_helper_file_name = "H2O_box_packmol_helper.inp", packmol_helper_path = PACKMOL_INPUT_FILES, water_box_output_file_name = "H2O_box.pdb", seed = None):
     '''
     '''
+
+    if seed is None:
+        seed = random.randint(1, 100000)
 
     if H2O_geometry is not None:
         H2O_pbd_file_path = os.path.join(PDB_FILES, "H2O_" + H2O_geometry + ".pdb")
@@ -39,7 +43,7 @@ def create_water_box(box_dimensions: dict, H2O_geometry = None, packmol_helper_f
     # density = 1.0 g/cm^3
     num_molecules = math.floor(estimate_number_density(density=1.0, molecular_weight=molecular_weight_H2O) * x_len * y_len * z_len)
 
-    tolerance = 1.4 # vdw radius for water
+    tolerance = 2.0 # default
     output_file_name = water_box_output_file_name
     output_file_path = OUTPUT
 
@@ -57,6 +61,7 @@ def create_water_box(box_dimensions: dict, H2O_geometry = None, packmol_helper_f
             f.write("# General parameters\n")
             f.write(f"tolerance {tolerance}\n")
             f.write("filetype pdb\n")
+            f.write(f"seed {seed}\n")
             f.write(f"output {full_output_file_path}\n\n")
 
             f.write("# Liquid molecule\n")

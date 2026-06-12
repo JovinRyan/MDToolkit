@@ -59,6 +59,19 @@ def axial_density(system : StructuredSystem, axis = "x", volume_method = "box", 
         bin_indices = np.digitize(coords, bin_edges) - 1
 
         bin_volumes = np.full(bins, ((axis_dims[1] - axis_dims[0]) / bins) * np.prod([dim[1] - dim[0] for dim in unselected_axes_dims]))
+
+        total_mass = sum(
+            atom.elemental_properties["AtomicMass"]
+            for atom in atom_list
+        )
+
+        box_volume = (
+            (system.box_dimensions["max_x"] - system.box_dimensions["min_x"]) *
+            (system.box_dimensions["max_y"] - system.box_dimensions["min_y"]) *
+            (system.box_dimensions["max_z"] - system.box_dimensions["min_z"])
+        )
+
+        avg_density = total_mass * 1e24 / (sc.N_A * box_volume)
         
     atom_ids_in_bin = {i: [] for i in range(bins)}
     atoms_in_bin = {i: [] for i in range(bins)}
@@ -95,11 +108,18 @@ def axial_density(system : StructuredSystem, axis = "x", volume_method = "box", 
     
     density_in_bin = np.array([masses_in_bin[i] * 1e24 / (sc.N_A * bin_volumes[i])for i in range(bins)])
 
+    elemental_number_density = {element: np.zeros(bins) for element in element_set}
+
+    for bin_idx, entry in enumerate(elements_in_bin):
+        for element, value in entry.items():
+            elemental_number_density[element][bin_idx] = value
+
     return {
         "bin_edges" : bin_edges,
         "bin_centers": 0.5 * (bin_edges[:-1] + bin_edges[1:]),
         "bin_volumes": bin_volumes,
         "number_density": atoms_in_bin / total_atom_number,
-        "elemental_number_density" : elements_in_bin,
-        "density" : density_in_bin
+        "elemental_number_density" : elemental_number_density,
+        "density" : density_in_bin,
+        "average_density" : avg_density
     }

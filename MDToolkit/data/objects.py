@@ -602,3 +602,10 @@ def construct_molecule_list_from_df(system_df):
 
     return molecule_list
 
+class Simulation:
+  '''
+  '''
+  def __init__(self, structured_systems_list, timesteps_list, atom_count_list):
+    self.frames = structured_systems_list
+    self.timesteps = timesteps_list
+    self.atom_counts = atom_count_list

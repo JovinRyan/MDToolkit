@@ -434,3 +434,39 @@ def get_lammps_data_file_indexes(file_path)->dict:
         print(f"Error in reading LAMMPS Data File: {e}")
 
     return {"atoms" : (atoms_start, atoms_stop), "bonds" : (bonds_start, bonds_stop), "angles" : (angles_start, angles_stop), "masses" : (masses_start, masses_stop), "box_dims" : (box_dims_start, box_dims_stop)}
+
+
+def get_lammps_dump_file_indices(file_path):
+    '''
+    '''
+
+    timestep_str = "ITEM: TIMESTEP"
+    atom_count_str = "ITEM: NUMBER OF ATOMS"
+    box_bounds_str = "ITEM: BOX BOUNDS"
+    atoms_str = "ITEM: ATOMS"
+
+    with open(file_path, "r") as f:
+        lines = f.readlines()
+
+    atom_counts_idxs = []
+    atoms_start_idxs = []
+    box_bounds_start_idxs = []
+    timestep_idxs = []
+
+    for i in range(len(lines)):
+        if lines[i].startswith(timestep_str):
+            timestep_idxs.append(i+1)
+        elif lines[i].startswith(atom_count_str):
+            atom_counts_idxs.append(i+1)
+        elif lines[i].startswith(box_bounds_str):
+            box_bounds_start_idxs.append(i+1)
+        elif lines[i].startswith(atoms_str):
+            atoms_start_idxs.append(i+1)
+
+    return {
+        "atom_counts" : atom_counts_idxs,
+        "atoms" : atoms_start_idxs,
+        "box_bounds" : box_bounds_start_idxs,
+        "timesteps" : timestep_idxs
+    }
+
