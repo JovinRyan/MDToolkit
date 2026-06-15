@@ -345,7 +345,7 @@ Methods:
     self.box_dimensions["min_z"] = min(vertices_z_coordinates)
     self.box_dimensions["max_z"] = max(vertices_z_coordinates)
 
-  def populate_elemental_properties_for_all_atoms(self):
+  def populate_elemental_properties_for_all_atoms(self, properties = ("AtomicMass")):
     '''
     Populates the elemental properties for all atoms in all molecules of the structured system based on a provided dictionary mapping element symbols to their properties.\n
     INPUT:\n
@@ -357,6 +357,9 @@ Methods:
 
     elements_dict = create_elements_dictionary()
 
+    if isinstance(properties, str):
+        properties = (properties,)
+
     elemental_property_cache = {}
     elemental_keys_cache = {}
 
@@ -367,15 +370,21 @@ Methods:
 
             if element not in elemental_property_cache:
                 try:
-                    elemental_properties = elements_dict[element]
+                    full_props = elements_dict[element]
 
                 except KeyError:
                     atom.fix_2char_element_symbol()
                     element = atom.element
-                    elemental_properties = elements_dict[element]
+                    full_props = elements_dict[element]
 
-                elemental_property_cache[element] = elemental_properties
-                elemental_keys_cache[element] = tuple(elemental_properties.keys())
+                filtered_props = {
+                    key: full_props[key]
+                    for key in properties
+                    if key in full_props
+                }
+
+                elemental_property_cache[element] = filtered_props
+                elemental_keys_cache[element] = tuple(filtered_props.keys())
 
             atom.elemental_properties = elemental_property_cache[element]
             atom.elemental_properties_keys = elemental_keys_cache[element]
@@ -604,8 +613,22 @@ def construct_molecule_list_from_df(system_df):
 
 class Simulation:
   '''
+  Represents a molecular dynamics simulation.\n
+  Parameters:
+- frames (list): A list of StructuredSystem objects representing the frames of the simulation.
+- timesteps (list): A list of timesteps corresponding to each frame in the simulation.
+- atom_counts (list): A list of atom counts corresponding to each frame in the simulation.\n
+Methods:
+- __init__(self, structured_systems_list, timesteps_list, atom_count_list):
   '''
   def __init__(self, structured_systems_list, timesteps_list, atom_count_list):
     self.frames = structured_systems_list
     self.timesteps = timesteps_list
     self.atom_counts = atom_count_list
+    self._elemental_properties_populated = False
+  
+  def populate_elemental_properties_for_all_frames(self, properties = ("AtomicMass")):
+    for frame in self.frames:
+      frame.populate_elemental_properties_for_all_atoms(properties)
+    
+    self._elemental_properties_populated = True

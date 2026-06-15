@@ -123,3 +123,100 @@ def axial_density(system : StructuredSystem, axis = "x", volume_method = "box", 
         "density" : density_in_bin,
         "average_density" : avg_density
     }
+
+def averaged_axial_density(simulation, axis = "x", volume_method = "box", bins = 200, discrete_volume = None, return_std_err = True, return_std_dev = False):
+    '''
+    Computes the axial density profile averaged over all frames in a simulation.\n
+    Parameters:
+    - simulation (Simulation): The Simulation object containing the frames to analyze.
+    - axis (str): The axis along which to compute the density profile ('x', 'y', or 'z').
+    - volume_method (str): The method to use for calculating the volume of each bin ('box' or 'discrete').
+    - bins (int): The number of bins to use for the density profile.
+    - discrete_volume (dict): A dictionary containing the discrete volume for each bin if volume_method is 'discrete'. The keys should be bin indices and the values should be the corresponding volumes.
+    - return_std_err (bool): Whether to return the standard error of the mean for the density profile.
+    - return_std_dev (bool): Whether to return the standard deviation for the density profile.\n
+    Returns:
+    - 'bin_edges': The edges of the bins used for the density profile.
+    - 'bin_centers': The centers of the bins used for the density profile.
+    - 'bin_volumes': The volumes of each bin used for the density profile.
+    - 'number_density_mean': The mean number density profile averaged over all frames.
+    - 'number_density_std': The standard deviation or standard error of the mean for the number density profile, depending on the return_std_err and return_std_dev parameters.
+    - 'density_mean': The mean mass density profile averaged over all frames.
+    - 'density_std': The standard deviation or standard error of the mean for the mass density profile, depending on the return_std_err and return_std_dev parameters.
+    - 'elemental_number_density_mean': A dictionary containing the mean elemental number density profiles for each element, averaged over all frames. The keys are the element symbols and the values are arrays of the mean elemental number density for each bin.
+    - 'elemental_number_density_std': A dictionary containing the standard deviation or standard error of the mean for the elemental number density profiles for
+    '''
+
+    number_density_stack = []
+    density_stack = []
+    elemental_stack = []
+
+    bin_edges = None
+    bin_centers = None
+    bin_volumes = None
+    elemental_keys = None
+
+    for frame in simulation.frames:
+
+        result = axial_density(frame, axis = axis, volume_method = volume_method, bins = bins, discrete_volume = discrete_volume)
+
+        if bin_edges is None:
+            bin_edges = result["bin_edges"]
+            bin_centers = result["bin_centers"]
+            bin_volumes = result["bin_volumes"]
+            elemental_keys = list(result["elemental_number_density"].keys())
+
+        number_density_stack.append(result["number_density"])
+        density_stack.append(result["density"])
+        elemental_stack.append(result["elemental_number_density"])
+
+    number_density_stack = np.array(number_density_stack)
+    density_stack = np.array(density_stack)
+
+    number_density_mean = np.mean(number_density_stack, axis = 0)
+    density_mean = np.mean(density_stack, axis = 0)
+
+    if return_std_dev:
+        number_density_std = np.std(number_density_stack, axis = 0)
+        density_std = np.std(density_stack, axis = 0)
+
+    else:
+        number_density_std = np.std(number_density_stack, axis = 0, ddof = 1)
+        density_std = np.std(density_stack, axis = 0, ddof = 1)
+
+    if return_std_err:
+        number_density_std = number_density_std / np.sqrt(len(simulation.frames))
+        density_std = density_std / np.sqrt(len(simulation.frames))
+
+    elemental_number_density_mean = {element : np.zeros(bins) for element in elemental_keys}
+    elemental_number_density_std = {element : np.zeros(bins) for element in elemental_keys}
+
+    for element in elemental_keys:
+
+        temp = np.array([
+            frame[element][i] if element in frame else 0.0
+            for frame in elemental_stack
+            for i in range(bins)
+        ]).reshape(len(simulation.frames), bins)
+
+        elemental_number_density_mean[element] = np.mean(temp, axis = 0)
+
+        if return_std_dev:
+            elemental_number_density_std[element] = np.std(temp, axis = 0)
+        else:
+            elemental_number_density_std[element] = np.std(temp, axis = 0, ddof = 1)
+
+        if return_std_err:
+            elemental_number_density_std[element] = elemental_number_density_std[element] / np.sqrt(len(simulation.frames))
+
+    return {
+        "bin_edges" : bin_edges,
+        "bin_centers" : bin_centers,
+        "bin_volumes" : bin_volumes,
+        "number_density_mean" : number_density_mean,
+        "number_density_std" : number_density_std,
+        "density_mean" : density_mean,
+        "density_std" : density_std,
+        "elemental_number_density_mean" : elemental_number_density_mean,
+        "elemental_number_density_std" : elemental_number_density_std
+    }

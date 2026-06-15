@@ -1,11 +1,12 @@
-from MDToolkit.IO.read_file import pdb_file_to_structured_system, lammps_data_file_to_structured_system
+import cProfile
+from MDToolkit.IO.read_file import pdb_file_to_structured_system, lammps_data_file_to_structured_system, lammps_dump_file_to_simulation
 from MDToolkit.IO.write_file import write_lammps_structure_file_atomic_full
-from MDToolkit.analysis.functions import axial_density
+from MDToolkit.analysis.diffusivity import compute_MSD
 
-cnt_pdb_file = "/media/jrjoseph/Elements/projects/training/water_graphene_cnt/cnt.pdb"
+lammps_dump_file = "/media/jrjoseph/Elements/projects/training/water_box_ls6/water_box_nvt_prod.out"
 
-lammps_water_box_data_file = "/media/jrjoseph/Elements/projects/training/water_box/equilibrated_water_box_spce.out"
+type_map = {1 : "O", 2 : "H"}
 
-system = lammps_data_file_to_structured_system(lammps_water_box_data_file)
+simulation = lammps_dump_file_to_simulation(lammps_dump_file, type_map)
 
-axial_density(system)
+compute_MSD(simulation)

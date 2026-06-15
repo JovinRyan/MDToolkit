@@ -1,6 +1,7 @@
 import math
 import re
 import decimal
+from itertools import islice
 
 def is_real_float(value):
 
@@ -61,3 +62,30 @@ def sort_atom_list_by_index(atom_list : list):
     atom_list.sort(key=lambda atom : atom.id)
 
     return atom_list
+
+def get_n_even_chunks(list_object, n_chunks=10, alternate_trimming = True):
+    data = list(list_object)
+
+    n = len(data)
+    remainder = n % n_chunks
+
+    left = 0
+    right = n - 1
+
+    while remainder != 0:
+        if alternate_trimming:
+            left += 1
+        else:
+            right -= 1
+
+        alternate_trimming = not alternate_trimming
+        remainder -= 1
+
+    trimmed = data[left:right + 1]
+
+    chunk_size = len(trimmed) // n_chunks
+
+    return [
+        trimmed[i * chunk_size:(i + 1) * chunk_size]
+        for i in range(n_chunks)
+    ]

@@ -2,6 +2,7 @@ import pandas as pd
 from itertools import groupby
 from io import StringIO
 from tqdm.auto import tqdm
+from joblib import Parallel, delayed
 from MDToolkit.utils.structure_file_utils import *
 from MDToolkit.utils.misc_utils import check_unique, is_real_float, is_strict_int
 from MDToolkit.data.objects import Simulation, StructuredSystem, Atom, Molecule, construct_molecule_list_from_df
@@ -316,8 +317,37 @@ def lammps_data_file_to_structured_system(file_path):
 
     return StructuredSystem(molecule_list = molecule_list, box_dimensions = box_dims_dict)
 
-def lammps_dump_file_to_simulation(file_path, type_mapping : dict):
+def _process_frame(df, type_mapping, coordinate_type = "standard"):
     '''
+    Helper function to process a single frame into molecules.
+    '''
+    molecules_list = []
+    tm = type_mapping
+
+    for mol_id, mol_df in df.groupby("mol", sort=False):
+        ids = mol_df["id"].to_numpy()
+        types = mol_df["type"].to_numpy()
+        if coordinate_type == "unwrapped":
+            xs = mol_df["xu"].to_numpy()
+            ys = mol_df["yu"].to_numpy()
+            zs = mol_df["zu"].to_numpy()
+            qs = mol_df["q"].to_numpy()
+        else:
+            xs = mol_df["x"].to_numpy()
+            ys = mol_df["y"].to_numpy()
+            zs = mol_df["z"].to_numpy()
+            qs = mol_df["q"].to_numpy()
+
+        atoms_list = [Atom(int(i), tm[t], [x, y, z], q)for i, t, x, y, z, q in zip(ids, types, xs, ys, zs, qs)]
+
+        molecules_list.append(Molecule(molecule_id=mol_id, molecule_name="ABC", atoms=atoms_list))
+
+    return molecules_list
+
+
+def lammps_dump_file_to_simulation(file_path, type_mapping: dict, coordinate_type = "standard", n_jobs=-1):
+    '''
+    Parallelized LAMMPS dump file parser → Simulation object.
     '''
 
     idxs_dict = get_lammps_dump_file_indices(file_path)
@@ -328,47 +358,53 @@ def lammps_dump_file_to_simulation(file_path, type_mapping : dict):
 
     with open(file_path, "r") as f:
         lines = f.readlines()
-    
+
     atom_counts_list = [int(lines[idx].strip()) for idx in atom_counts_idxs]
     timesteps_list = [int(lines[idx].strip()) for idx in timesteps_idxs]
-    box_bounds_list = []
 
+    box_bounds_list = []
     for idx in box_bounds_idxs:
-        min_x, max_x = lines[idx].strip().split(" ")
-        min_y, max_y = lines[idx + 1].strip().split(" ")
-        min_z, max_z = lines[idx + 2].strip().split(" ")
+        min_x, max_x = lines[idx].split()
+        min_y, max_y = lines[idx + 1].split()
+        min_z, max_z = lines[idx + 2].split()
 
         box_bounds_list.append({
-            "min_x" : float(min_x), "max_x" : float(max_x),
-            "min_y" : float(min_y), "max_y" : float(max_y),
-            "min_z" : float(min_z), "max_z" : float(max_z)
+            "min_x": float(min_x), "max_x": float(max_x),
+            "min_y": float(min_y), "max_y": float(max_y),
+            "min_z": float(min_z), "max_z": float(max_z)
         })
-    
+
+    header_line = lines[atoms_idxs[0] - 1]
+    columns = header_line.removeprefix("ITEM: ATOMS ").split()
+
     atom_dfs = []
-    columns = lines[atoms_idxs[0] - 1].removeprefix("ITEM: ATOMS ").split()
     for i in range(len(atoms_idxs)):
-        atom_lines = lines[atoms_idxs[i]:atoms_idxs[i] + atom_counts_list[i]]
+        start = atoms_idxs[i]
+        end = start + atom_counts_list[i]
 
-        df = pd.read_csv(StringIO("".join(atom_lines)),names=columns,sep=r"\s+")
+        atom_lines = lines[start:end]
 
+        df = pd.read_csv(
+            StringIO("".join(atom_lines)),
+            names=columns,
+            sep=r"\s+",
+            engine="c"
+        )
+
+        df.sort_values("id", inplace=True)
         atom_dfs.append(df)
 
-    molecule_lists_list = []
-    for df in tqdm(atom_dfs, total=len(atom_dfs), desc="Reading and Converting Frames", unit="frame"):
-        molecules_list = []
-        
-        for mol_id, mol_df in df.groupby("mol"):
-            atoms_list = []
-            for row in mol_df.itertuples(index=False):
-                atoms_list.append(Atom(id=row.id,element=type_mapping[row.type],position=[row.x, row.y, row.z],charge=row.q))            
-            
-            molecules_list.append(Molecule(molecule_id = mol_id, molecule_name = "ABC", atoms = atoms_list))
+    # -----------------------------
+    # PARALLEL FRAME PROCESSING
+    # -----------------------------
+    molecule_lists_list = Parallel(n_jobs=n_jobs)(
+        delayed(_process_frame)(df, type_mapping, coordinate_type)
+        for df in tqdm(atom_dfs, desc="Processing frames", unit="frame")
+    )
 
-        molecule_lists_list.append(molecules_list)        
-    
-    structured_systems_list = []
+    structured_systems_list = [
+        StructuredSystem(molecule_lists_list[i], box_dimensions=box_bounds_list[i])
+        for i in range(len(molecule_lists_list))
+    ]
 
-    for i in range(len(molecule_lists_list)):
-        structured_systems_list.append(StructuredSystem(molecule_lists_list[i], box_dimensions=box_bounds_list[i]))
-    
     return Simulation(structured_systems_list, timesteps_list, atom_counts_list)
