@@ -288,6 +288,20 @@ Methods:
     for molecule in self.molecule_list:
       molecule.id = new_id
 
+  def combine_all_molecules(self, molecule_id = 1, molecule_name = "CMB"):
+    '''
+    Combines all molecules in the structured system into a single molecule with a specified ID and name.\n
+    INPUT:\n
+    molecule_id (int): The ID to be assigned to the combined molecule. Default is 1.\n
+    molecule_name (str): The name to be assigned to the combined molecule. Default is "CMB".
+
+    RETURNS:\n
+    None: This method modifies the structured system in place by combining all molecules into one and does not return anything.
+    '''
+    combined_atoms = [atom for molecule in self.molecule_list for atom in molecule.atoms]
+    combined_molecule = Molecule(molecule_id, molecule_name, combined_atoms)
+    self.molecule_list = [combined_molecule]
+
   def reset_atom_ids(self):
     new_id = 1
     for molecule in self.molecule_list:
@@ -574,6 +588,11 @@ Methods:
       for angle in molecule.angles:
         angle[0] = angle_id 
         angle_id += 1
+  
+  def get_atoms_list(self):
+    '''
+    '''
+    return([atom for molecule in self.molecule_list for atom in molecule.atoms])
   
 def construct_molecule_list_from_df(system_df):
     '''

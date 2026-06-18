@@ -124,7 +124,7 @@ def axial_density(system : StructuredSystem, axis = "x", volume_method = "box", 
         "average_density" : avg_density
     }
 
-def averaged_axial_density(simulation, axis = "x", volume_method = "box", bins = 200, discrete_volume = None, return_std_err = True, return_std_dev = False):
+def averaged_axial_density(simulation, axis = "x", volume_method = "box", bins = 200, discrete_volume = None):
     '''
     Computes the axial density profile averaged over all frames in a simulation.\n
     Parameters:
@@ -133,7 +133,6 @@ def averaged_axial_density(simulation, axis = "x", volume_method = "box", bins =
     - volume_method (str): The method to use for calculating the volume of each bin ('box' or 'discrete').
     - bins (int): The number of bins to use for the density profile.
     - discrete_volume (dict): A dictionary containing the discrete volume for each bin if volume_method is 'discrete'. The keys should be bin indices and the values should be the corresponding volumes.
-    - return_std_err (bool): Whether to return the standard error of the mean for the density profile.
     - return_std_dev (bool): Whether to return the standard deviation for the density profile.\n
     Returns:
     - 'bin_edges': The edges of the bins used for the density profile.
@@ -150,6 +149,7 @@ def averaged_axial_density(simulation, axis = "x", volume_method = "box", bins =
     number_density_stack = []
     density_stack = []
     elemental_stack = []
+    average_density_list = []
 
     bin_edges = None
     bin_centers = None
@@ -169,6 +169,7 @@ def averaged_axial_density(simulation, axis = "x", volume_method = "box", bins =
         number_density_stack.append(result["number_density"])
         density_stack.append(result["density"])
         elemental_stack.append(result["elemental_number_density"])
+        average_density_list.append(result["average_density"])
 
     number_density_stack = np.array(number_density_stack)
     density_stack = np.array(density_stack)
@@ -176,20 +177,16 @@ def averaged_axial_density(simulation, axis = "x", volume_method = "box", bins =
     number_density_mean = np.mean(number_density_stack, axis = 0)
     density_mean = np.mean(density_stack, axis = 0)
 
-    if return_std_dev:
-        number_density_std = np.std(number_density_stack, axis = 0)
-        density_std = np.std(density_stack, axis = 0)
+    number_density_std = np.std(number_density_stack, axis=0)
 
-    else:
-        number_density_std = np.std(number_density_stack, axis = 0, ddof = 1)
-        density_std = np.std(density_stack, axis = 0, ddof = 1)
-
-    if return_std_err:
-        number_density_std = number_density_std / np.sqrt(len(simulation.frames))
-        density_std = density_std / np.sqrt(len(simulation.frames))
+    density_std = np.std(density_stack, axis=0)
 
     elemental_number_density_mean = {element : np.zeros(bins) for element in elemental_keys}
     elemental_number_density_std = {element : np.zeros(bins) for element in elemental_keys}
+
+    average_density = np.mean(average_density_list)
+
+    average_density_std = np.std(average_density_list)
 
     for element in elemental_keys:
 
@@ -200,14 +197,7 @@ def averaged_axial_density(simulation, axis = "x", volume_method = "box", bins =
         ]).reshape(len(simulation.frames), bins)
 
         elemental_number_density_mean[element] = np.mean(temp, axis = 0)
-
-        if return_std_dev:
-            elemental_number_density_std[element] = np.std(temp, axis = 0)
-        else:
-            elemental_number_density_std[element] = np.std(temp, axis = 0, ddof = 1)
-
-        if return_std_err:
-            elemental_number_density_std[element] = elemental_number_density_std[element] / np.sqrt(len(simulation.frames))
+        elemental_number_density_std[element] = np.std(temp, axis = 0)
 
     return {
         "bin_edges" : bin_edges,
@@ -218,5 +208,7 @@ def averaged_axial_density(simulation, axis = "x", volume_method = "box", bins =
         "density_mean" : density_mean,
         "density_std" : density_std,
         "elemental_number_density_mean" : elemental_number_density_mean,
-        "elemental_number_density_std" : elemental_number_density_std
+        "elemental_number_density_std" : elemental_number_density_std,
+        "average_density" : average_density,
+        "average_density_std" : average_density_std
     }
