@@ -57,6 +57,7 @@ def axial_density(system : StructuredSystem, axis = "x", volume_method = "box", 
         coords = np.array([x[1] for x in atom_index_axial_coordinate_list])
 
         bin_indices = np.digitize(coords, bin_edges) - 1
+        bin_indices = np.clip(bin_indices, 0, bins - 1)
 
         bin_volumes = np.full(bins, ((axis_dims[1] - axis_dims[0]) / bins) * np.prod([dim[1] - dim[0] for dim in unselected_axes_dims]))
 
@@ -212,3 +213,9 @@ def averaged_axial_density(simulation, axis = "x", volume_method = "box", bins =
         "average_density" : average_density,
         "average_density_std" : average_density_std
     }
+
+def discretize_axis(single_frame : StructuredSystem, axis = "x"):
+    '''
+    '''
+
+

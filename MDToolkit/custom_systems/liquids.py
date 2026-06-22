@@ -7,7 +7,7 @@ from MDToolkit.utils.structure_file_utils import estimate_number_density
 from MDToolkit.IO.read_file import pdb_file_to_structured_system, packmol_pdb_file_to_structured_system
 from MDToolkit.paths import PDB_FILES, PACKMOL_INPUT_FILES, OUTPUT
 
-def create_water_box(box_dimensions: dict, H2O_geometry = None, packmol_helper_file_name = "H2O_box_packmol_helper.inp", packmol_helper_path = PACKMOL_INPUT_FILES, water_box_output_file_name = "H2O_box.pdb", seed = None):
+def create_water_box(box_dimensions: dict, H2O_geometry = None, packmol_helper_file_name = "H2O_box_packmol_helper.inp", packmol_helper_path = PACKMOL_INPUT_FILES, water_box_output_file_name = "H2O_box.pdb", seed = None, density_correction = 0):
     '''
     '''
 
@@ -41,7 +41,7 @@ def create_water_box(box_dimensions: dict, H2O_geometry = None, packmol_helper_f
     ])
 
     # density = 1.0 g/cm^3
-    num_molecules = math.floor(estimate_number_density(density=1.0, molecular_weight=molecular_weight_H2O) * x_len * y_len * z_len)
+    num_molecules = math.floor((estimate_number_density(density=1.0, molecular_weight=molecular_weight_H2O) * x_len * y_len * z_len) * (1 + density_correction))
 
     tolerance = 2.0 # default
     output_file_name = water_box_output_file_name
