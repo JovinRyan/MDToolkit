@@ -1,7 +1,9 @@
 import numpy as np
 import scipy.constants as sc
+from collections.abc import Sequence
 from MDToolkit.data.objects import StructuredSystem, Molecule, Atom
 from MDToolkit.utils.misc_utils import sort_atom_list_by_index
+from MDToolkit.data.misc_objects import Volume, BoxVolume, CylinderVolume
 
 def axial_density(system : StructuredSystem, axis = "x", volume_method = "box", bins = 200, discrete_volume = None):
     '''
@@ -214,8 +216,162 @@ def averaged_axial_density(simulation, axis = "x", volume_method = "box", bins =
         "average_density_std" : average_density_std
     }
 
-def discretize_axis(single_frame : StructuredSystem, axis = "x"):
+# vol_dict = {
+#     "bins" : 250,
+#     "volumes": [BoxVolume(),]
+# }
+
+def axial_density_new(system : StructuredSystem, volumes: Sequence[Volume], bins = 250, axis = "x"):
     '''
     '''
 
+    axes_set = {"x", "y", "z"}
 
+    if axis not in axes_set:
+        raise ValueError("Axis must be 'x', 'y', or 'z'")
+
+    axis_index = 0
+
+    match axis:
+        case "x":
+            axis_index = 0
+        case "y":
+            axis_index = 1
+        case "z":
+            axis_index = 2
+    
+    system.populate_elemental_properties_for_all_atoms()
+
+    atoms_list = system.get_atoms_list()
+    axial_coordinates_list = [atom.position[axis_index] for atom in atoms_list]
+
+    vol_points = []
+
+    for vol in volumes:
+        vol_points.append((vol.point1, vol.point2))
+
+    axis_points = []
+    for i in range(len(vol_points)):
+        axis_points.append(vol_points[i][0][axis_index])
+        axis_points.append(vol_points[i][1][axis_index])
+
+    axis_bins = np.linspace(min(axis_points), max(axis_points), num = bins + 1)
+
+    atoms_bin_idxs = np.digitize(axial_coordinates_list, axis_bins) - 1
+
+    atoms_bins = [[] for _ in range(bins)]
+
+    for atom, b in zip(atoms_list, atoms_bin_idxs):
+        atoms_bins[b].append(atom)
+
+    bin_ranges = [
+        (axis_bins[i], axis_bins[i + 1])
+        for i in range(bins)
+    ]
+
+    vol_ranges = [
+        (
+            min(vol.point1[axis_index], vol.point2[axis_index]),
+            max(vol.point1[axis_index], vol.point2[axis_index])
+        )
+        for vol in volumes
+    ]
+
+    def overlap(a, b):
+        return not (a[1] <= b[0] or b[1] <= a[0])
+
+    bin_to_volumes = [[] for _ in range(bins)]
+
+    for i, b in enumerate(bin_ranges):
+        for j, v in enumerate(vol_ranges):
+            if overlap(b, v):
+                bin_to_volumes[i].append(j)
+
+    atoms_in_volume_bins = [[[] for _ in range(len(volumes))] for _ in range(bins)]
+
+    for i, bin_atoms in enumerate(atoms_bins):
+        if len(bin_atoms) == 0:
+            continue
+
+        for v_idx in bin_to_volumes[i]:
+
+            vol = volumes[v_idx]
+
+            mask = vol.contains_atoms(bin_atoms)
+
+            filtered_atoms = [atom for atom, m in zip(bin_atoms, mask) if m]
+
+            atoms_in_volume_bins[i][v_idx] = filtered_atoms
+
+    atoms_in_bin = np.array([sum(len(atoms_in_volume_bins[i][v]) for v in range(len(volumes))) for i in range(bins)])
+
+    total_atom_number = sum(atoms_in_bin)
+
+    elements_in_bin = []
+    for i in range(bins):
+
+        elements = [
+            atom.element
+            for v in range(len(volumes))
+            for atom in atoms_in_volume_bins[i][v]
+        ]
+
+        elems, counts = np.unique(elements, return_counts=True)
+
+        elements_in_bin.append(
+            dict(zip(elems, counts))
+        )
+    
+        bin_volumes = np.zeros(bins)
+
+    for i in range(bins):
+
+        bin_min = axis_bins[i]
+        bin_max = axis_bins[i + 1]
+
+        for v_idx in bin_to_volumes[i]:
+
+            vol = volumes[v_idx]
+
+            vol_min = min(
+                vol.point1[axis_index],
+                vol.point2[axis_index]
+            )
+
+            vol_max = max(
+                vol.point1[axis_index],
+                vol.point2[axis_index]
+            )
+
+            overlap_length = (
+                min(bin_max, vol_max)
+                - max(bin_min, vol_min)
+            )
+
+            if overlap_length <= 0:
+                continue
+
+            axial_length = vol_max - vol_min
+
+            bin_volumes[i] += (
+                overlap_length
+                * vol.volume
+                / axial_length
+            )
+    
+    masses_in_bin = np.array([
+        sum(atom.elemental_properties["AtomicMass"] for v in range(len(volumes)) for atom in atoms_in_volume_bins[i][v]) for i in range(bins)])
+
+    density_in_bin = (masses_in_bin * 1e24 / (sc.N_A * bin_volumes))  
+
+    avg_density = np.sum(density_in_bin * bin_volumes) / np.sum(bin_volumes)
+
+    return {
+        "bin_edges" : axis_bins,
+        "bin_centers": 0.5 * (axis_bins[:-1] + axis_bins[1:]),
+        "bin_volumes": bin_volumes,
+        "number_density": atoms_in_bin / total_atom_number,
+        "elemental_number_density" : elements_in_bin,
+        "density" : density_in_bin,
+        "average_density" : avg_density
+    }

@@ -1,5 +1,5 @@
-import numpy as np
 from abc import ABC, abstractmethod
+import numpy as np
 from MDToolkit.data.objects import Simulation, StructuredSystem, Molecule, Atom
 
 class Volume(ABC):
@@ -9,31 +9,52 @@ class Volume(ABC):
 
     @property
     @abstractmethod
-    def volume(self):
+    def volume(self) -> float:
+        """
+        Returns
+        -------
+        float
+            Total volume of the region.
+        """
         pass
 
     @abstractmethod
-    def contains(self, points):
+    def contains(self, points: np.ndarray) -> np.ndarray:
         """
         Parameters
         ----------
-        points : (N,3) ndarray
+        points : (N, 3) ndarray
 
         Returns
         -------
-        mask : (N,) bool ndarray
+        (N,) ndarray of bool
+            True for points inside the volume.
         """
         pass
 
     @property
     @abstractmethod
-    def bounding_box(self):
+    def bounding_box(self) -> tuple[np.ndarray, np.ndarray]:
         """
         Returns
         -------
         mins, maxs : ndarray, ndarray
+            Lower and upper corners of the axis-aligned
+            bounding box.
         """
         pass
+
+    def contains_atoms(self, atoms, **kwargs):
+        """
+        Convenience wrapper around contains().
+        """
+
+        points = np.asarray(
+            [atom.position for atom in atoms],
+            dtype=float
+        )
+
+        return self.contains(points, **kwargs)
 
 class BoxVolume(Volume):
 
@@ -59,23 +80,22 @@ class BoxVolume(Volume):
 
         return self.mins, self.maxs
 
-    def contains(self, points):
+    def contains(self, points, lower_bound="closed", upper_bound="open"):
 
         points = np.asarray(points)
 
-        return np.all(
-            (points >= self.mins) &
-            (points <= self.maxs),
-            axis=1
-        )
-    
-    def contains_atoms(self, atoms):
+        if lower_bound == "closed":
+            lower_mask = points >= self.mins
+        else:
+            lower_mask = points > self.mins
 
-        points = np.asarray([atom.position for atom in atoms])
+        if upper_bound == "closed":
+            upper_mask = points <= self.maxs
+        else:
+            upper_mask = points < self.maxs
 
         return np.all(
-            (points >= self.mins) &
-            (points <= self.maxs),
+            lower_mask & upper_mask,
             axis=1
         )
     
@@ -119,12 +139,7 @@ class BoxVolume(Volume):
 
 class CylinderVolume(Volume):
 
-    def __init__(
-        self,
-        point1,
-        point2,
-        radius
-    ):
+    def __init__(self, point1, point2, radius):
 
         self.point1 = np.asarray(point1, dtype=float)
         self.point2 = np.asarray(point2, dtype=float)
@@ -138,6 +153,13 @@ class CylinderVolume(Volume):
         if self.height == 0:
             raise ValueError(
                 "Cylinder endpoints cannot coincide."
+            )
+        
+        nonzero = np.count_nonzero(np.abs(axis) > 1e-12)
+
+        if nonzero != 1:
+            raise ValueError(
+                "CylinderVolume must be aligned with x, y, or z axis."
             )
 
         self.axis = axis / self.height
@@ -173,57 +195,39 @@ class CylinderVolume(Volume):
             f"volume={self.volume:.4f})"
         )
 
-    def contains(self, points):
+    def contains(self, points, lower_bound="closed", upper_bound="open", radial_bound="closed"):
+        """
+        lower_bound : {"open", "closed"}
+        upper_bound : {"open", "closed"}
+        radial_bound : {"open", "closed"}
+        """
 
         points = np.asarray(points)
-
-        print(points)
 
         rel = points - self.point1
 
         axial = np.dot(rel, self.axis)
 
-        radial_vec = (
-            rel -
-            np.outer(axial, self.axis)
-        )
+        radial_vec = rel - np.outer(axial, self.axis)
 
-        radial_dist = np.linalg.norm(
-            radial_vec,
-            axis=1
-        )
+        radial_dist = np.linalg.norm(radial_vec, axis=1)
 
-        return (
-            (axial >= 0.0) &
-            (axial <= self.height) &
-            (radial_dist <= self.radius)
-        )
-    
-    def contains_atoms(self, atoms):
-        
-        coordinates = np.asanyarray([atom.position for atom in atoms])
+        if lower_bound == "closed":
+            lower_mask = axial >= 0.0
+        else:
+            lower_mask = axial > 0.0
 
-        print(coordinates)
+        if upper_bound == "closed":
+            upper_mask = axial <= self.height
+        else:
+            upper_mask = axial < self.height
 
-        rel = coordinates - self.point1
+        if radial_bound == "closed":
+            radial_mask = radial_dist <= self.radius
+        else:
+            radial_mask = radial_dist < self.radius
 
-        axial = np.dot(rel, self.axis)
-
-        radial_vec = (
-            rel -
-            np.outer(axial, self.axis)
-        )
-
-        radial_dist = np.linalg.norm(
-            radial_vec,
-            axis=1
-        )
-
-        return (
-            (axial >= 0.0) &
-            (axial <= self.height) &
-            (radial_dist <= self.radius)
-        )
+        return lower_mask & upper_mask & radial_mask
     
     def discretize_axial(self, n_bins = 250):
         '''
@@ -241,6 +245,9 @@ class CylinderVolume(Volume):
             p2[self.axis_idx] = points[i] 
 
             bins.append(CylinderVolume(p1, p2, self.radius))
-        
-        print(bins)
+            
         return bins
+
+class AnnularVolume(Volume):
+    '''
+    '''
