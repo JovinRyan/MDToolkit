@@ -7,9 +7,11 @@ system_file_path = "/media/jrjoseph/Elements/projects/training/cnt_graphene_wate
 
 system = lammps_data_file_to_structured_system(system_file_path)
 
-volumes = [BoxVolume([-104.027, -27.70, -27.155], [-53, 27.70, 27.155]), CylinderVolume([-53, 0, 0], [53, 0, 0], 7.5), BoxVolume([53, -27.70, -27.155], [104.011, 27.70, 27.155])]
+volumes = [BoxVolume([-104.027, -27.70, -27.155], [-53, 27.70, 27.155]), BoxVolume([53, -27.70, -27.155], [104.011, 27.70, 27.155])]
 
-out = axial_density_new(system, volumes, bins=500)
+#  CylinderVolume([-53, 0, 0], [53, 0, 0], 7.5), 
+
+out = axial_density_new(system, volumes, bins=250)
 
 import matplotlib.pyplot as plt
 

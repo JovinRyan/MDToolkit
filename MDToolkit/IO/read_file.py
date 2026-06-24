@@ -317,30 +317,43 @@ def lammps_data_file_to_structured_system(file_path):
 
     return StructuredSystem(molecule_list = molecule_list, box_dimensions = box_dims_dict)
 
-def _process_frame(df, type_mapping, coordinate_type = "standard"):
-    '''
-    Helper function to process a single frame into molecules.
-    '''
+def _process_frame(df, type_mapping, coordinate_type="standard"):
     molecules_list = []
     tm = type_mapping
 
-    for mol_id, mol_df in df.groupby("mol", sort=False):
-        ids = mol_df["id"].to_numpy()
-        types = mol_df["type"].to_numpy()
-        if coordinate_type == "unwrapped":
-            xs = mol_df["xu"].to_numpy()
-            ys = mol_df["yu"].to_numpy()
-            zs = mol_df["zu"].to_numpy()
-            qs = mol_df["q"].to_numpy()
-        else:
-            xs = mol_df["x"].to_numpy()
-            ys = mol_df["y"].to_numpy()
-            zs = mol_df["z"].to_numpy()
-            qs = mol_df["q"].to_numpy()
+    mols  = df["mol"].to_numpy()
+    ids   = df["id"].to_numpy()
+    types = df["type"].to_numpy()
+    qs    = df["q"].to_numpy()
 
-        atoms_list = [Atom(int(i), tm[t], [x, y, z], q)for i, t, x, y, z, q in zip(ids, types, xs, ys, zs, qs)]
+    if coordinate_type == "unwrapped":
+        xs = df["xu"].to_numpy()
+        ys = df["yu"].to_numpy()
+        zs = df["zu"].to_numpy()
+    else:
+        xs = df["x"].to_numpy()
+        ys = df["y"].to_numpy()
+        zs = df["z"].to_numpy()
 
-        molecules_list.append(Molecule(molecule_id=mol_id, molecule_name="ABC", atoms=atoms_list))
+    for mol_id, idxs in df.groupby("mol", sort=False).indices.items():
+
+        atoms_list = [
+            Atom(
+                int(ids[i]),
+                tm[types[i]],
+                [xs[i], ys[i], zs[i]],
+                qs[i]
+            )
+            for i in idxs
+        ]
+
+        molecules_list.append(
+            Molecule(
+                molecule_id=mol_id,
+                molecule_name="ABC",
+                atoms=atoms_list
+            )
+        )
 
     return molecules_list
 

@@ -216,11 +216,6 @@ def averaged_axial_density(simulation, axis = "x", volume_method = "box", bins =
         "average_density_std" : average_density_std
     }
 
-# vol_dict = {
-#     "bins" : 250,
-#     "volumes": [BoxVolume(),]
-# }
-
 def axial_density_new(system : StructuredSystem, volumes: Sequence[Volume], bins = 250, axis = "x"):
     '''
     '''
@@ -362,16 +357,31 @@ def axial_density_new(system : StructuredSystem, volumes: Sequence[Volume], bins
     masses_in_bin = np.array([
         sum(atom.elemental_properties["AtomicMass"] for v in range(len(volumes)) for atom in atoms_in_volume_bins[i][v]) for i in range(bins)])
 
-    density_in_bin = (masses_in_bin * 1e24 / (sc.N_A * bin_volumes))  
+    density_in_bin = np.full(len(masses_in_bin), np.nan)
 
-    avg_density = np.sum(density_in_bin * bin_volumes) / np.sum(bin_volumes)
+    mask = bin_volumes > 0
+    density_in_bin[mask] = (masses_in_bin[mask] * 1e24 / (sc.N_A * bin_volumes[mask]))
+
+    avg_density = (np.sum(density_in_bin[mask] * bin_volumes[mask]) / np.sum(bin_volumes[mask]))
+
+    elemental_number_density = {element: np.zeros(bins) for element in elems}
+
+    for bin_idx, entry in enumerate(elements_in_bin):
+        for element, value in entry.items():
+            elemental_number_density[element][bin_idx] = value
+    
+    for key in elemental_number_density.keys():
+        key_sum = np.sum(elemental_number_density[key])
+        elemental_number_density[key] = elemental_number_density[key] / key_sum
+
+    print(elemental_number_density)
 
     return {
         "bin_edges" : axis_bins,
         "bin_centers": 0.5 * (axis_bins[:-1] + axis_bins[1:]),
         "bin_volumes": bin_volumes,
         "number_density": atoms_in_bin / total_atom_number,
-        "elemental_number_density" : elements_in_bin,
+        "elemental_number_density" : elemental_number_density,
         "density" : density_in_bin,
         "average_density" : avg_density
     }
