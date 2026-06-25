@@ -1,7 +1,9 @@
 import numpy as np
 import scipy.constants as sc
 from collections.abc import Sequence
-from MDToolkit.data.objects import StructuredSystem, Molecule, Atom
+from concurrent.futures import ProcessPoolExecutor, as_completed
+from tqdm import tqdm
+from MDToolkit.data.objects import Simulation, StructuredSystem, Molecule, Atom
 from MDToolkit.utils.misc_utils import sort_atom_list_by_index
 from MDToolkit.data.misc_objects import Volume, BoxVolume, CylinderVolume
 
@@ -216,7 +218,7 @@ def averaged_axial_density(simulation, axis = "x", volume_method = "box", bins =
         "average_density_std" : average_density_std
     }
 
-def axial_density_new(system : StructuredSystem, volumes: Sequence[Volume], bins = 250, axis = "x"):
+def axial_density_new(system : StructuredSystem, volumes: Sequence[Volume], bins = 250, axis = "x") -> dict:
     '''
     '''
 
@@ -257,7 +259,8 @@ def axial_density_new(system : StructuredSystem, volumes: Sequence[Volume], bins
     atoms_bins = [[] for _ in range(bins)]
 
     for atom, b in zip(atoms_list, atoms_bin_idxs):
-        atoms_bins[b].append(atom)
+        if 0 <= b < bins:
+            atoms_bins[b].append(atom)
 
     bin_ranges = [
         (axis_bins[i], axis_bins[i + 1])
@@ -364,7 +367,9 @@ def axial_density_new(system : StructuredSystem, volumes: Sequence[Volume], bins
 
     avg_density = (np.sum(density_in_bin[mask] * bin_volumes[mask]) / np.sum(bin_volumes[mask]))
 
-    elemental_number_density = {element: np.zeros(bins) for element in elems}
+    all_elements = sorted({atom.element for atom in atoms_list})
+
+    elemental_number_density = {element: np.zeros(bins) for element in all_elements}
 
     for bin_idx, entry in enumerate(elements_in_bin):
         for element, value in entry.items():
@@ -372,16 +377,70 @@ def axial_density_new(system : StructuredSystem, volumes: Sequence[Volume], bins
     
     for key in elemental_number_density.keys():
         key_sum = np.sum(elemental_number_density[key])
-        elemental_number_density[key] = elemental_number_density[key] / key_sum
+        if key_sum > 0:
+            elemental_number_density[key] = elemental_number_density[key] / key_sum
 
-    print(elemental_number_density)
+    valid = slice(1, -1)
 
     return {
-        "bin_edges" : axis_bins,
-        "bin_centers": 0.5 * (axis_bins[:-1] + axis_bins[1:]),
-        "bin_volumes": bin_volumes,
-        "number_density": atoms_in_bin / total_atom_number,
-        "elemental_number_density" : elemental_number_density,
-        "density" : density_in_bin,
-        "average_density" : avg_density
+        "bin_edges": axis_bins[1:-1],
+        "bin_centers": 0.5 * (axis_bins[:-1] + axis_bins[1:])[valid],
+        "bin_volumes": bin_volumes[valid],
+        "number_density": (atoms_in_bin / total_atom_number)[valid],
+        "elemental_number_density": {
+            k: v[valid]
+            for k, v in elemental_number_density.items()
+        },
+        "density": density_in_bin[valid],
+        "average_density": avg_density
+    }
+
+def axial_density_time_averaged(simulation : Simulation, volumes: Sequence[Volume], bins = 250, axis = "x", n_workers = 32) -> dict:
+    '''
+    '''
+    timesteps = simulation.timesteps
+
+    with ProcessPoolExecutor(max_workers = n_workers) as executor:
+        futures = {
+            executor.submit(axial_density_new, frame, volumes, bins, axis): i
+            for i, frame in enumerate(simulation.frames)
+        }
+
+        results = [None] * len(simulation.frames)
+
+        for fut in tqdm(as_completed(futures), total=len(futures), desc="Performing density calculations:", unit="frame(s)"):
+            i = futures[fut]
+            results[i] = fut.result()
+
+    density = np.stack([r["density"] for r in results])
+    number_density = np.stack([r["number_density"] for r in results])
+    average_density = np.array([r["average_density"] for r in results])
+
+    elements = results[0]["elemental_number_density"].keys()
+
+    elemental_density = {element: np.stack([r["elemental_number_density"][element] for r in results]) for element in elements}
+
+    return {
+        "bin_edges": results[0]["bin_edges"],
+        "bin_centers": results[0]["bin_centers"],
+        "bin_volumes": results[0]["bin_volumes"],
+
+        "density_mean": np.mean(density, axis=0),
+        "density_std": np.std(density, axis=0),
+
+        "number_density_mean": np.mean(number_density, axis=0),
+        "number_density_std": np.std(number_density, axis=0),
+
+        "average_density_mean": np.mean(average_density),
+        "average_density_std": np.std(average_density),
+
+        "elemental_number_density_mean": {
+            element: np.mean(arr, axis=0)
+            for element, arr in elemental_density.items()
+        },
+
+        "elemental_number_density_std": {
+            element: np.std(arr, axis=0)
+            for element, arr in elemental_density.items()
+        }
     }

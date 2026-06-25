@@ -1,12 +1,12 @@
 import scipy.constants as sc
 import pandas as pd
+import numpy as np
 import math
 import copy
 import json
 from MDToolkit.utils.misc_utils import is_real_float, is_strict_int
 from MDToolkit.paths import ELEMENTS_CSV, MOLECULAR_DATA_JSON
-# from MDToolkit.data.objects import Atom, Molecule, StructuredSystem
-# import mdtoolkit.logging as log
+
 
 def estimate_number_density(density: float, molecular_weight : float):
     '''

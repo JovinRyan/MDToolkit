@@ -251,3 +251,20 @@ class CylinderVolume(Volume):
 class AnnularVolume(Volume):
     '''
     '''
+
+def get_max_box_volume_from_simulation(simulation : Simulation) -> BoxVolume:
+    '''
+    '''
+    bounding_boxes = [frame.box_dimensions for frame in simulation.frames]
+
+    min_xs = np.array([box["min_x"] for box in bounding_boxes])
+    max_xs = np.array([box["max_x"] for box in bounding_boxes])
+    min_ys = np.array([box["min_y"] for box in bounding_boxes])
+    max_ys = np.array([box["max_y"] for box in bounding_boxes])
+    min_zs = np.array([box["min_z"] for box in bounding_boxes])
+    max_zs = np.array([box["max_z"] for box in bounding_boxes])
+
+    p1 = [max(min_xs), max(min_ys), max(min_zs)]
+    p2 = [min(max_xs), min(max_ys), min(max_zs)]
+
+    return BoxVolume(p1, p2)

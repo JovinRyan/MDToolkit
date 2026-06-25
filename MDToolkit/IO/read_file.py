@@ -412,7 +412,7 @@ def lammps_dump_file_to_simulation(file_path, type_mapping: dict, coordinate_typ
     # -----------------------------
     molecule_lists_list = Parallel(n_jobs=n_jobs, prefer="threads")(
         delayed(_process_frame)(df, type_mapping, coordinate_type)
-        for df in tqdm(atom_dfs, desc="Processing frames", unit="frame")
+        for df in tqdm(atom_dfs, desc="Processing frames", unit="frame(s)")
     )
 
     structured_systems_list = [
