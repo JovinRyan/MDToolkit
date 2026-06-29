@@ -280,7 +280,7 @@ def lammps_data_file_to_structured_system(file_path):
         lines = f.readlines()
         mass_lines = lines[mass_indices[0]:mass_indices[1] + 1]
         box_dims_lines = lines[box_dims_indices[0]:box_dims_indices[1] + 1]
-
+    mass_lines.remove("\n")
     mass_inttype_mapping = {}
     for i in range(len(mass_lines)):
         entry = {int(mass_lines[i].strip().split(" ")[0]) : float(mass_lines[i].strip().split(" ")[1])}
@@ -326,6 +326,10 @@ def _process_frame(df, type_mapping, coordinate_type="standard"):
     types = df["type"].to_numpy()
     qs    = df["q"].to_numpy()
 
+    remove_set = set(["mol", "id", "type", "q", "x", "xu", "y", "yu", "z", "zu"])
+
+    additional_cols = [col for col in df.columns.tolist() if col not in remove_set]
+
     if coordinate_type == "unwrapped":
         xs = df["xu"].to_numpy()
         ys = df["yu"].to_numpy()
@@ -334,6 +338,9 @@ def _process_frame(df, type_mapping, coordinate_type="standard"):
         xs = df["x"].to_numpy()
         ys = df["y"].to_numpy()
         zs = df["z"].to_numpy()
+    
+    e_props = {prop : df[prop].to_numpy() for prop in additional_cols}
+    e_props["AtomicMass"] = e_props.pop("mass")
 
     for mol_id, idxs in df.groupby("mol", sort=False).indices.items():
 
@@ -342,7 +349,9 @@ def _process_frame(df, type_mapping, coordinate_type="standard"):
                 int(ids[i]),
                 tm[types[i]],
                 [xs[i], ys[i], zs[i]],
-                qs[i]
+                qs[i], 
+                elemental_properties = {key: e_props[key][i] for key in e_props.keys()},
+                elemental_properties_keys=[e_props.keys()]
             )
             for i in idxs
         ]
@@ -377,9 +386,9 @@ def lammps_dump_file_to_simulation(file_path, type_mapping: dict, coordinate_typ
 
     box_bounds_list = []
     for idx in box_bounds_idxs:
-        min_x, max_x = lines[idx].split()
-        min_y, max_y = lines[idx + 1].split()
-        min_z, max_z = lines[idx + 2].split()
+        min_x, max_x = lines[idx].split()[:2]
+        min_y, max_y = lines[idx + 1].split()[:2]
+        min_z, max_z = lines[idx + 2].split()[:2]
 
         box_bounds_list.append({
             "min_x": float(min_x), "max_x": float(max_x),
