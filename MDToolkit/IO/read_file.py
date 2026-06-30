@@ -351,7 +351,7 @@ def _process_frame(df, type_mapping, coordinate_type="standard"):
                 [xs[i], ys[i], zs[i]],
                 qs[i], 
                 elemental_properties = {key: e_props[key][i] for key in e_props.keys()},
-                elemental_properties_keys=[e_props.keys()]
+                elemental_properties_keys=list(e_props.keys())
             )
             for i in idxs
         ]
@@ -367,7 +367,7 @@ def _process_frame(df, type_mapping, coordinate_type="standard"):
     return molecules_list
 
 
-def lammps_dump_file_to_simulation(file_path, type_mapping: dict, coordinate_type = "standard", n_jobs=-1):
+def lammps_dump_file_to_simulation(file_path, type_mapping: dict, coordinate_type = "standard", n_jobs=16):
     '''
     Parallelized LAMMPS dump file parser → Simulation object.
     '''

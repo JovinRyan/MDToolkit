@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 import numpy as np
 from MDToolkit.data.objects import Simulation, StructuredSystem, Molecule, Atom
 
@@ -247,10 +248,124 @@ class CylinderVolume(Volume):
             bins.append(CylinderVolume(p1, p2, self.radius))
             
         return bins
+    
+    def discretize_radial(self, n_bins = 250):
+        '''
+        '''
+        radii = np.linspace(0.0, self.radius, num = n_bins + 1)
 
-class AnnularVolume(Volume):
+        bins = []
+
+        for i in range(len(radii) - 1):
+            bins.append(AnnularCylinderVolume(self.point1, self.point2, radii[i], radii[i+1]))
+
+        return bins
+
+
+class AnnularCylinderVolume(Volume):
     '''
     '''
+
+    def __init__(self, point1, point2, radius1, radius2):
+
+        self.point1 = np.asarray(point1, dtype=float)
+        self.point2 = np.asarray(point2, dtype=float)
+
+        if radius1 == radius2:
+            raise ValueError(
+                "AnnularCylinderVolume radii cannot be the same."
+            )
+
+        self.i_radius = min(float(radius1), float(radius2))
+        self.o_radius = max(float(radius1), float(radius2))
+
+        axis = self.point2 - self.point1
+
+        self.height = np.linalg.norm(axis)
+
+        if self.height == 0:
+            raise ValueError(
+                "CylinderVolume endpoints cannot coincide."
+            )
+        
+        nonzero = np.count_nonzero(np.abs(axis) > 1e-12)
+
+        if nonzero != 1:
+            raise ValueError(
+                "CylinderVolume must be aligned with x, y, or z axis."
+            )
+
+        self.axis = axis / self.height
+
+        self.axis_idx = np.argmax(np.abs(self.axis))
+
+    @property
+    def volume(self):
+
+        return np.pi * (self.o_radius**2 - self.i_radius**2) * self.height
+    
+    def __repr__(self):
+        return (
+            f"AnnularCylinderVolume("
+            f"point1={self.point1.tolist()}, "
+            f"point2={self.point2.tolist()}, "
+            f"inner radius={self.i_radius:.4f}, "
+            f"outer radius={self.o_radius:.4f}, "
+            f"volume={self.volume:.4f})"
+        )
+
+    @property
+    def bounding_box(self):
+        mins = np.minimum(
+            self.point1,
+            self.point2
+        ) - self.o_radius
+
+        maxs = np.maximum(
+            self.point1,
+            self.point2
+        ) + self.o_radius
+
+        return mins, maxs
+
+    def contains(self, points, lower_bound="closed", upper_bound="closed", outer_radial_bound="open", inner_radial_bound="closed"):
+        """
+        lower_bound : {"open", "closed"}
+        upper_bound : {"open", "closed"}
+        radial_bound : {"open", "closed"}
+        """
+
+        points = np.asarray(points)
+
+        rel = points - self.point1
+
+        axial = np.dot(rel, self.axis)
+
+        radial_vec = rel - np.outer(axial, self.axis)
+
+        radial_dist = np.linalg.norm(radial_vec, axis=1)
+
+        if lower_bound == "closed":
+            lower_mask = axial >= 0.0
+        else:
+            lower_mask = axial > 0.0
+
+        if upper_bound == "closed":
+            upper_mask = axial <= self.height
+        else:
+            upper_mask = axial < self.height
+
+        if outer_radial_bound == "closed":
+            outer_radial_mask = radial_dist <= self.o_radius
+        else:
+            outer_radial_mask = radial_dist < self.o_radius
+        
+        if inner_radial_bound == "closed":
+            inner_radial_mask = radial_dist >= self.i_radius
+        else:
+            inner_radial_mask = radial_dist > self.i_radius
+
+        return lower_mask & upper_mask & outer_radial_mask & inner_radial_mask
 
 def get_max_box_volume_from_simulation(simulation : Simulation) -> BoxVolume:
     '''
