@@ -171,3 +171,7 @@ def create_ionic_liquid_box(box_dimensions : dict, cation_pdb_file_path : str, a
         ionic_liquid_box_system = pdb_file_to_structured_system(output_path)
 
     return ionic_liquid_box_system
+
+def create_salt_in_water_box(box_dimensions: dict, H2O_geometry = None, packmol_helper_file_name = "H2O_Salt_box_packmol_helper.inp", packmol_helper_path = PACKMOL_INPUT_FILES, water_box_output_file_name = "Salt_H2O_box.pdb", seed = None, density_correction = 0):
+    '''
+    '''

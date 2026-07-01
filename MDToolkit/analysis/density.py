@@ -1,4 +1,5 @@
 import numpy as np
+import os
 import scipy.constants as sc
 from collections.abc import Sequence
 from concurrent.futures import ProcessPoolExecutor, as_completed
@@ -184,7 +185,7 @@ def axial_density(system : StructuredSystem, volumes: Sequence[Volume], bins = 2
         "average_density": avg_density
     }
 
-def axial_density_time_averaged(simulation : Simulation, volumes: Sequence[Volume], bins = 250, axis = "x", n_workers = 32) -> dict:
+def axial_density_time_averaged(simulation : Simulation, volumes: Sequence[Volume], bins = 250, axis = "x", n_workers = os.cpu_count()//2) -> dict:
     '''
     '''
 
