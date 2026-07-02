@@ -39,22 +39,6 @@ def count_decimals(num):
     # Using decimal module to avoid floating point representation issues
     return abs(decimal.Decimal(str(num)).as_tuple().exponent)
 
-def file_path_to_elements_and_stoichiometries(file_path : str):
-    formula = file_path.split("/")[-1].split(".")[0]
-    char_list = list(formula)
-    element_list = []
-    stoich_list = []
-    for char in char_list:
-        if char.isupper():
-            element_list.append(char)
-            stoich_list.append(1.0)
-        elif char.islower():
-            element_list[-1] += char
-        elif char.isdigit():
-            stoich_list.append(float(char))
-            del stoich_list[-2]
-
-    return element_list, stoich_list
 
 def sort_atom_list_by_index(atom_list : list):
     '''

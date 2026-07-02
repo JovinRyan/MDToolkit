@@ -8,6 +8,7 @@ packmol_input_files/
 #datafiles
 MDToolkit/data/pdb_files/*
 MDToolkit/data/cif_files/*
+MDToolkit/data/xyz_files/*
 
 #misc env files
 .*

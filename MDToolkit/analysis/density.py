@@ -5,7 +5,7 @@ from collections.abc import Sequence
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from tqdm import tqdm
 from MDToolkit.data.objects import Simulation, StructuredSystem, Molecule, Atom
-from MDToolkit.utils.misc_utils import sort_atom_list_by_index
+from MDToolkit.utils.misc_utils import sort_atom_list_by_index, get_n_even_chunks
 from MDToolkit.data.misc_objects import Volume, BoxVolume, CylinderVolume
 
 def axial_density(system : StructuredSystem, volumes: Sequence[Volume], bins = 250, axis = "x") -> dict:
@@ -323,7 +323,7 @@ def radial_density(system : StructuredSystem, cyl_volume : CylinderVolume, bins 
         "average_density": average_density,
     }
 
-def radial_density_time_averaged(simulation : Simulation, cyl_volume: CylinderVolume, bins = 250, n_workers = 16) -> dict:
+def radial_density_time_averaged(simulation : Simulation, cyl_volume: CylinderVolume, bins = 250, n_workers = os.cpu_count()//2, averaging_blocks = 10) -> dict:
     '''
     '''
 
@@ -339,13 +339,45 @@ def radial_density_time_averaged(simulation : Simulation, cyl_volume: CylinderVo
             i = futures[fut]
             results[i] = fut.result()
 
-    density = np.stack([r["density"] for r in results])
-    number_density = np.stack([r["number_density"] for r in results])
-    average_density = np.array([r["average_density"] for r in results])
+    results_chunks = get_n_even_chunks(results, averaging_blocks)
 
     elements = results[0]["elemental_number_density"].keys()
 
-    elemental_density = {element: np.stack([r["elemental_number_density"][element] for r in results]) for element in elements}
+    density = []
+    number_density = []
+    average_density = []
+    elemental_density = {element: [] for element in elements}
+
+    for r_chunk in results_chunks:
+
+        density.append(
+            np.mean(np.stack([r["density"] for r in r_chunk]), axis=0)
+        )
+
+        number_density.append(
+            np.mean(np.stack([r["number_density"] for r in r_chunk]), axis=0)
+        )
+
+        average_density.append(
+            np.mean([r["average_density"] for r in r_chunk])
+        )
+
+        for element in elements:
+            elemental_density[element].append(
+                np.mean(
+                    np.stack(
+                        [r["elemental_number_density"][element] for r in r_chunk]
+                    ),
+                    axis=0
+                )
+            )
+
+    density = np.stack(density)
+    number_density = np.stack(number_density)
+    average_density = np.array(average_density)
+
+    for element in elements:
+        elemental_density[element] = np.stack(elemental_density[element])
 
     return {
         "bin_edges": results[0]["bin_edges"],
@@ -353,13 +385,13 @@ def radial_density_time_averaged(simulation : Simulation, cyl_volume: CylinderVo
         "bin_volumes": results[0]["bin_volumes"],
 
         "density_mean": np.mean(density, axis=0),
-        "density_std": np.std(density, axis=0),
+        "density_std": np.std(density, axis=0, ddof=1),
 
         "number_density_mean": np.mean(number_density, axis=0),
-        "number_density_std": np.std(number_density, axis=0),
+        "number_density_std": np.std(number_density, axis=0, ddof=1),
 
         "average_density_mean": np.mean(average_density),
-        "average_density_std": np.std(average_density),
+        "average_density_std": np.std(average_density, ddof=1),
 
         "elemental_number_density_mean": {
             element: np.mean(arr, axis=0)

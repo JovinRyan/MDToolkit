@@ -1,10 +1,11 @@
+import os
 import numpy as np
 import scipy.constants as sc
 from collections.abc import Sequence
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from tqdm import tqdm
 from MDToolkit.data.objects import Simulation, StructuredSystem, Molecule, Atom
-from MDToolkit.utils.misc_utils import sort_atom_list_by_index
+from MDToolkit.utils.misc_utils import sort_atom_list_by_index, get_n_even_chunks
 from MDToolkit.data.misc_objects import Volume, BoxVolume, CylinderVolume
 
 def radial_velocity_profile(system: StructuredSystem, cyl_volume : CylinderVolume, bins = 250):
@@ -68,7 +69,7 @@ def radial_velocity_profile(system: StructuredSystem, cyl_volume : CylinderVolum
         "speed": np.asarray(mean_speed),
     }
 
-def radial_velocity_profile_time_averaged(simulation: Simulation, cyl_volume: CylinderVolume, bins = 250, n_workers = 32):
+def radial_velocity_profile_time_averaged(simulation: Simulation, cyl_volume: CylinderVolume, bins = 250, n_workers = os.cpu_count()//2, averaging_blocks = 10):
     '''
     '''
 
@@ -83,21 +84,41 @@ def radial_velocity_profile_time_averaged(simulation: Simulation, cyl_volume: Cy
         for fut in tqdm(as_completed(futures), total=len(futures), desc="Performing velocity profile calculations:", unit="frame(s)"):
             i = futures[fut]
             results[i] = fut.result()
+    
+    results_chunks = get_n_even_chunks(results, averaging_blocks)
 
-    vx = np.stack([r["vx"] for r in results])
-    vy = np.stack([r["vy"] for r in results])
-    vz = np.stack([r["vz"] for r in results])
-    speed = np.stack([r["speed"] for r in results])
+    vx = []
+    vy = []
+    vz = []
+    speed = []
+    for r_chunk in results_chunks:
+        vx.append(
+            np.mean(np.stack([r["vx"] for r in r_chunk]), axis=0)
+        )
+        vy.append(
+            np.mean(np.stack([r["vy"] for r in r_chunk]), axis=0)
+        )
+        vz.append(
+            np.mean(np.stack([r["vz"] for r in r_chunk]), axis=0)
+        )
+        speed.append(
+            np.mean(np.stack([r["speed"] for r in r_chunk]), axis=0)
+        )
+
+    vx = np.stack(vx)
+    vy = np.stack(vy)
+    vz = np.stack(vz)
+    speed = np.stack(speed)
     
     return {
         "bin_edges": results[0]["bin_edges"],
         "bin_centers": results[0]["bin_centers"],
         "vx": np.nanmean(vx, axis=0),
-        "vx_std": np.nanstd(vx, axis=0),
+        "vx_std": np.nanstd(vx, axis=0, ddof=1),
         "vy": np.nanmean(vy, axis=0),
-        "vy_std": np.nanstd(vy, axis=0),
+        "vy_std": np.nanstd(vy, axis=0, ddof=1),
         "vz": np.nanmean(vz, axis=0),
-        "vz_std": np.nanstd(vz, axis=0),
+        "vz_std": np.nanstd(vz, axis=0, ddof=1),
         "speed": np.nanmean(speed, axis=0),
-        "speed_std": np.nanstd(speed, axis=0),
+        "speed_std": np.nanstd(speed, axis=0, ddof=1),
     }

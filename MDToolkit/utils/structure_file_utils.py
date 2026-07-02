@@ -13,15 +13,90 @@ def estimate_number_density(density: float, molecular_weight : float):
     INPUT: \n
     density (float) : density of species in g/cm^3 \n
     molecular_weight (float) : molecular weight of species in g/mol \n
-    atom_count (int) : number of atoms in species molecule. Default = 1 \n
 
     RETURNS: \n
-    number_density (float) : estimated number density of species in atoms/angstom^3
+    number_density (float) : estimated number density of species in molecules/angstom^3
     '''
 
     number_density = density/molecular_weight * sc.N_A/10**24
 
     return number_density
+
+def estimate_solute_solvent_number_density_from_molarity(
+    molarity: float,
+    solvent_molecular_weight: float,
+    solute_molecular_weight: float,
+    solution_density: float = 1.0,
+):
+    '''
+    Estimate the number densities of the solvent and solute for a solution of
+    known molarity.
+
+    INPUT:
+    molarity (float) : solute concentration in mol/L
+    solvent_molecular_weight (float) : solvent molecular weight in g/mol
+    solute_molecular_weight (float) : solute molecular weight in g/mol
+    solution_density (float) : solution density in g/cm^3. Default = 1.0
+
+    RETURNS:
+    solvent_number_density (float) : solvent number density in molecules/angstrom^3
+    solute_number_density (float) : solute number density in molecules/angstrom^3
+    '''
+
+    # Convert solution density from g/cm^3 to g/L
+    solution_density *= 1000.0
+
+    # Solvent concentration (mol/L)
+    solvent_concentration = (
+        solution_density - molarity * solute_molecular_weight
+    ) / solvent_molecular_weight
+
+    # Convert mol/L -> molecules/angstrom^3
+    conversion = sc.Avogadro / 1e27
+
+    solvent_number_density = solvent_concentration * conversion
+    solute_number_density = molarity * conversion
+
+    return solvent_number_density, solute_number_density
+
+def molecular_formula_to_elements_and_stoichiometries(formula : str):
+    char_list = list(formula)
+    element_list = []
+    stoich_list = []
+    for i in range(len(char_list)):
+        if char_list[i].isupper():
+            element_list.append(char_list[i])
+            stoich_list.append(1.0)
+        elif char_list[i].islower():
+            element_list[-1] += char_list[i]
+        elif char_list[i].isdigit():
+            try:
+                if char_list[i + 1].isdigit():
+                    char_list[i] += char_list[i+1]
+                    char_list[i + 1] = ""
+                stoich_list.append(float(char_list[i]))
+                del stoich_list[-2]    
+            except:
+                stoich_list.append(float(char_list[i]))
+                del stoich_list[-2]
+
+    return element_list, stoich_list
+
+def file_path_to_elements_and_stoichiometries(file_path : str):
+    formula = file_path.split("/")[-1].split(".")[0]
+    
+    return molecular_formula_to_elements_and_stoichiometries(formula)
+
+def elements_and_stoichiometries_to_molar_mass(elements: list[str], stoichiometries: list[float]):
+
+    elements_dict = create_elements_dictionary()
+
+    molar_mass = 0.0
+    for i in range(len(elements)):
+        molar_mass += elements_dict[elements[i]]["AtomicMass"] * stoichiometries[i]
+    
+    return molar_mass
+
 
 def read_elements_csv(file_path = ELEMENTS_CSV):
     '''
