@@ -97,6 +97,10 @@ def elements_and_stoichiometries_to_molar_mass(elements: list[str], stoichiometr
     
     return molar_mass
 
+def molecular_formula_to_molar_mass(formula: str):
+    elements, stoichs = molecular_formula_to_elements_and_stoichiometries(formula)
+
+    return elements_and_stoichiometries_to_molar_mass(elements, stoichs)
 
 def read_elements_csv(file_path = ELEMENTS_CSV):
     '''
