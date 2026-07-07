@@ -262,7 +262,7 @@ def radial_density(system : StructuredSystem, cyl_volume : CylinderVolume, bins 
 
     masses_in_bin = np.array([sum(atom.elemental_properties["AtomicMass"] for atom in atoms) for atoms in atoms_in_annulus])
 
-    density_in_bin = np.full(bins, np.nan)
+    density_in_bin = np.full(bins, 0.0)
 
     mask = bin_volumes > 0
 
@@ -300,15 +300,16 @@ def radial_density(system : StructuredSystem, cyl_volume : CylinderVolume, bins 
             elemental_number_density[element][i] = count
 
     for element in elemental_number_density:
-        total = elemental_number_density[element].sum()
-        if total > 0:
-            elemental_number_density[element] /= total
+        elemental_number_density[element] = elemental_number_density[element] / bin_volumes
+        # total = elemental_number_density[element].sum()
+        # if total > 0:
+        #     elemental_number_density[element] /= total
 
     bin_edges = np.array([annuli[0].i_radius] + [a.o_radius for a in annuli])
 
     bin_centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
 
-    number_density = atoms_per_bin / total_atoms
+    number_density = atoms_per_bin / bin_volumes
 
     return {
         "bin_edges": bin_edges,

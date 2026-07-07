@@ -264,6 +264,7 @@ def packmol_pdb_file_to_structured_system(file_path):
 
     return structured_system
 
+
 def lammps_data_file_to_structured_system(file_path):
     '''
     '''
@@ -280,7 +281,17 @@ def lammps_data_file_to_structured_system(file_path):
         lines = f.readlines()
         mass_lines = lines[mass_indices[0]:mass_indices[1] + 1]
         box_dims_lines = lines[box_dims_indices[0]:box_dims_indices[1] + 1]
-    mass_lines.remove("\n")
+        if bond_indices[0] != None and bond_indices[1] != None:
+            bonds_lines = lines[bond_indices[0]: bond_indices[1] + 1]
+        else:
+            bonds_lines = None
+        
+        if angle_indices[0] != None and angle_indices[1] != None:
+            angles_lines = lines[angle_indices[0]: angle_indices[1] + 1]
+        else:
+            angles_lines = None
+
+    mass_lines = [line for line in mass_lines if line.strip()]
     mass_inttype_mapping = {}
     for i in range(len(mass_lines)):
         entry = {int(mass_lines[i].strip().split(" ")[0]) : float(mass_lines[i].strip().split(" ")[1])}
@@ -315,7 +326,17 @@ def lammps_data_file_to_structured_system(file_path):
         
         molecule_list.append(Molecule(molecule_id=mol_id,molecule_name= "ABC", atoms=atoms_list))
 
-    return StructuredSystem(molecule_list = molecule_list, box_dimensions = box_dims_dict)
+    system = StructuredSystem(molecule_list = molecule_list, box_dimensions = box_dims_dict)
+
+    if bonds_lines != None:
+        bonds_list = [[int(item) for item in line.strip().split(" ")] for line in bonds_lines]
+        system.bonds = bonds_list
+
+    if angles_lines != None:
+        angles_list = [[int(item) for item in line.strip().split(" ")] for line in angles_lines]
+        system.angles = angles_list
+
+    return system
 
 def _process_frame(df, type_mapping, coordinate_type="standard"):
     molecules_list = []

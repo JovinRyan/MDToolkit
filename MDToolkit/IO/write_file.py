@@ -192,16 +192,14 @@ def write_lammps_structure_file_atomic_full(structured_system : StructuredSystem
         if num_bonds > 0:
             lines.append("\n")
             lines.append("Bonds\n\n")
-            for molecule in structured_system.molecule_list:
-                for bond in molecule.bonds:
-                    lines.append(f"{bond[0]} {bond[1]} {bond[2]} {bond[3]}\n")
+            for bond_entry in structured_system.bonds:
+                lines.append(" ".join(map(str, bond_entry)) + "\n")
 
         if num_angles > 0:
             lines.append("\n")
             lines.append("Angles\n\n")
-            for molecule in structured_system.molecule_list:
-                for angle in molecule.angles:
-                    lines.append(f"{angle[0]} {angle[1]} {angle[2]} {angle[3]} {angle[4]}\n")
+            for angle_entry in structured_system.angles:
+                lines.append(" ".join(map(str, angle_entry)) + "\n")
 
 
         with open(full_file_path, 'w') as f:

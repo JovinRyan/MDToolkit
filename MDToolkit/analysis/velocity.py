@@ -39,10 +39,10 @@ def radial_velocity_profile(system: StructuredSystem, cyl_volume : CylinderVolum
         atoms = [atom for atom, keep in zip(atoms_list, mask) if keep]
 
         if not atoms:
-            mean_vx.append(np.nan)
-            mean_vy.append(np.nan)
-            mean_vz.append(np.nan)
-            mean_speed.append(np.nan)
+            mean_vx.append(0.0)
+            mean_vy.append(0.0)
+            mean_vz.append(0.0)
+            mean_speed.append(0.0)
             continue
 
         vx = np.array([a.elemental_properties.get("vx", 0.0) for a in atoms])

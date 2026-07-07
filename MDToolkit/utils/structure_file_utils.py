@@ -474,46 +474,60 @@ def get_alias_key_from_file_path(file_path):
     return file_path.split("/")[-1].split(".")[0]
 
 
-def get_lammps_data_file_indexes(file_path)->dict:
+def get_lammps_data_file_indexes(file_path) -> dict:
     '''
     '''
 
-    atoms_start = 0
-    atoms_stop = 0
-    bonds_start = 0
-    bonds_stop = 0
-    angles_start = 0
-    angles_stop = 0
-    masses_start = 0
-    masses_stop = 0
+    atoms_start = None
+    atoms_stop = None
+    bonds_start = None
+    bonds_stop = None
+    angles_start = None
+    angles_stop = None
+    masses_start = None
+    masses_stop = None
+    box_dims_start = None
+    box_dims_stop = None
 
-    try:
-        with open(file_path, "r") as f:
-            lines = f.readlines()
-            atoms_count_id = next((i for i, line in enumerate(lines) if line.endswith("atoms\n")), float('inf'))
-            bonds_count_id = next((i for i, line in enumerate(lines) if line.endswith("bonds\n")), float('inf'))
-            angles_count_id = next((i for i, line in enumerate(lines) if line.endswith("angles\n")), float('inf'))
-            
-            atoms_start = next((i for i, line in enumerate(lines) if line.startswith("Atoms")), float('inf')) + 2
-            atoms_stop = int(lines[atoms_count_id].split(" ")[0]) + atoms_start - 1
+    with open(file_path, "r") as f:
+        lines = f.readlines()
 
-            bonds_start = next((i for i, line in enumerate(lines) if line.startswith("Bonds")), float('inf')) + 2
-            bonds_stop = int(lines[bonds_count_id].split(" ")[0]) + bonds_start - 1
+        atoms_count_id = next((i for i, line in enumerate(lines) if line.endswith("atoms\n")), None)
+        bonds_count_id = next((i for i, line in enumerate(lines) if line.endswith("bonds\n")), None)
+        angles_count_id = next((i for i, line in enumerate(lines) if line.endswith("angles\n")), None)
 
-            angles_start = next((i for i, line in enumerate(lines) if line.startswith("Angles")), float('inf')) + 2
-            angles_stop = int(lines[angles_count_id].split(" ")[0]) + angles_start - 1
+        atoms_header = next((i for i, line in enumerate(lines) if line.startswith("Atoms")), None)
+        bonds_header = next((i for i, line in enumerate(lines) if line.startswith("Bonds")), None)
+        angles_header = next((i for i, line in enumerate(lines) if line.startswith("Angles")), None)
 
-            masses_start = next((i for i, line in enumerate(lines) if line.endswith("zlo zhi\n")), float('inf')) + 4
-            masses_stop = next((i for i, line in enumerate(lines) if line.startswith("Atoms")), float('inf')) - 2
+        if atoms_header is not None:
+            atoms_start = atoms_header + 2
+            atoms_stop = atoms_start + int(lines[atoms_count_id].split()[0]) - 1
 
-            box_dims_start = next((i for i, line in enumerate(lines) if line.endswith("xlo xhi\n")), float('inf'))
-            box_dims_stop = next((i for i, line in enumerate(lines) if line.endswith("zlo zhi\n")), float('inf'))
-            
-    except Exception as e:
-        print(f"Error in reading LAMMPS Data File: {e}")
+        if bonds_header is not None and bonds_count_id is not None:
+            bonds_start = bonds_header + 2
+            bonds_stop = bonds_start + int(lines[bonds_count_id].split()[0]) - 1
 
-    return {"atoms" : (atoms_start, atoms_stop), "bonds" : (bonds_start, bonds_stop), "angles" : (angles_start, angles_stop), "masses" : (masses_start, masses_stop), "box_dims" : (box_dims_start, box_dims_stop)}
+        if angles_header is not None and angles_count_id is not None:
+            angles_start = angles_header + 2
+            angles_stop = angles_start + int(lines[angles_count_id].split()[0]) - 1
 
+        box_dims_start = next((i for i, line in enumerate(lines) if line.endswith("xlo xhi\n")), None)
+        box_dims_stop = next((i for i, line in enumerate(lines) if line.endswith("zlo zhi\n")), None)
+
+        zlo_header = box_dims_stop
+
+        if zlo_header is not None and atoms_header is not None:
+            masses_start = zlo_header + 4
+            masses_stop = atoms_header - 2
+
+    return {
+        "atoms": (atoms_start, atoms_stop),
+        "bonds": (bonds_start, bonds_stop),
+        "angles": (angles_start, angles_stop),
+        "masses": (masses_start, masses_stop),
+        "box_dims": (box_dims_start, box_dims_stop),
+    }
 
 def get_lammps_dump_file_indices(file_path):
     '''

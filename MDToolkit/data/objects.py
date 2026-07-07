@@ -2,6 +2,8 @@ import pandas as pd
 import math
 import numpy as np
 from bidict import bidict
+from collections import defaultdict 
+from itertools import combinations
 from scipy.spatial import cKDTree
 from scipy.spatial.transform import Rotation as R
 from MDToolkit.utils.misc_utils import count_decimals
@@ -219,6 +221,12 @@ Methods:
       angles_list.append([i + angle_count, molecular_data["angle_types"][i], self.atoms[molecular_data["angle_bond_indices"][i][0]].id, self.atoms[molecular_data["angle_bond_indices"][i][1]].id, self.atoms[molecular_data["angle_bond_indices"][i][2]].id])
 
     self.angles = angles_list
+  
+  def populate_angles_from_bonds(self, angle_count = 1):
+    '''
+    '''
+    
+
 
 class StructuredSystem:
   '''
@@ -244,6 +252,8 @@ Methods:
       box_angles = [90.0, 90.0, 90.0]
     self.box_angles = box_angles
     self._elemental_properties_populated = False
+    self.bonds = None
+    self.angles = None
 
   def __repr__(self):
     return f"StructuredSystem(molecule_list={self.molecule_list}, box_dimensions={self.box_dimensions}, box_angles={self.box_angles})"
@@ -541,14 +551,12 @@ Methods:
         tuple: (number_of_bonds, number_of_bond_types)
     '''
 
-    num_bonds = 0
-    bond_types = set()
-
-    for molecule in self.molecule_list:
-        num_bonds += len(molecule.bonds)
-
-        for bond in molecule.bonds:
-            bond_types.add(bond[1])
+    if self.bonds is None:
+      num_bonds = 0
+      bond_types = []
+    else:
+      num_bonds = len(self.bonds)
+      bond_types = np.unique(np.array([bond[1] for bond in self.bonds]))
 
     return num_bonds, len(bond_types)
   
@@ -558,15 +566,13 @@ Methods:
         tuple: (number_of_angles, number_of_angle_types)
     '''
 
-    num_angles = 0
-    angle_types = set()
+    if self.angles is None:
+      num_angles = 0
+      angle_types = []
+    else:
+      num_angles = len(self.angles)
+      angle_types = np.unique(np.array([angle[1] for angle in self.angles]))
 
-    for molecule in self.molecule_list:
-      num_angles += len(molecule.angles)
-
-      for angle in molecule.angles:
-        angle_types.add(angle[1])
-    
     return num_angles, len(angle_types)
   
   def reset_bond_ids(self):
@@ -593,6 +599,25 @@ Methods:
     '''
     '''
     return([atom for molecule in self.molecule_list for atom in molecule.atoms])
+  
+  def populate_angles_from_bonds(self):
+    '''
+    '''
+    angles_list = []
+    bonds_list = self.bonds
+    idx_pairs = [(min(bond[-2:]), max(bond[-2:])) for bond in bonds_list]
+    idx_pairs.sort()
+
+    idx_triplets = []
+
+    for i in range(len(idx_pairs) - 1):
+        if idx_pairs[i][0] == idx_pairs[i+1][0]:
+            idx_triplets.append([idx_pairs[i][1], idx_pairs[i][0], idx_pairs[i+1][1]])
+    
+    for i in range(len(idx_triplets)):
+      angles_list.append([i + 1, 1] + idx_triplets[i])
+
+    self.angles = angles_list
   
 def construct_molecule_list_from_df(system_df):
     '''
