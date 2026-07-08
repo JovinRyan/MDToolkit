@@ -117,3 +117,33 @@ def translocation_current(simulation: Simulation, ion_spcs: list[str], v1: Volum
     cumulative_q = np.cumsum(delta_q)
 
     return events, delta_q, cumulative_q
+
+def charge_velocity_current(simulation, averaging_blocks = 10, current_vector = [1, 0, 0]):
+    '''
+    '''
+    box_dims_dict = simulation.frames[0].box_dimensions
+    
+    if current_vector == [1, 0, 0]:
+        L = box_dims_dict["max_x"] - box_dims_dict["min_x"]
+        v_key = "vx"
+    elif current_vector == [0, 1, 0]:
+        L = box_dims_dict["max_y"] - box_dims_dict["min_y"]
+        v_key = "vy"
+    else:
+        L = box_dims_dict["max_z"] - box_dims_dict["min_z"]
+        v_key = "vz"
+
+    atoms_lists = [frame.get_atoms_list() for frame in simulation.frames]
+
+    I = []
+    for atoms_list in tqdm(atoms_lists):
+        v = np.empty(len(atoms_list))
+        q = np.empty(len(atoms_list))
+
+        for i, atom in enumerate(atoms_list):
+            v[i] = atom.elemental_properties[v_key]
+            q[i] = atom.charge
+        
+        I.append(np.sum(q*v / L))
+
+    return I

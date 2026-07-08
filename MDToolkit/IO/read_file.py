@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 from itertools import groupby
 from io import StringIO
@@ -388,7 +389,7 @@ def _process_frame(df, type_mapping, coordinate_type="standard"):
     return molecules_list
 
 
-def lammps_dump_file_to_simulation(file_path, type_mapping: dict, coordinate_type = "standard", n_jobs=16):
+def lammps_dump_file_to_simulation(file_path, type_mapping: dict, coordinate_type = "standard", n_jobs=os.cpu_count()//2):
     '''
     Parallelized LAMMPS dump file parser → Simulation object.
     '''

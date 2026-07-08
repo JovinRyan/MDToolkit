@@ -25,3 +25,4 @@ uv.*
 *.venv
 env/
 venv/
+build/
