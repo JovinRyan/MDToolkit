@@ -4,23 +4,27 @@ from concurrent.futures import ProcessPoolExecutor
 from MDToolkit.data.objects import Frame, Simulation
 from MDToolkit.utils.misc_utils import get_n_even_chunks
 
-def qv_current(frame : Frame, I_vector = [1, 0, 0]):
+def qv_current(frame : Frame, ions_spcs : list[str], I_vector = [1, 0, 0]):
     '''
     '''
     vec_idx = I_vector.index(1)
 
+    ions_types = [k for k, v in frame.topology.type_mapping.items() if v in ions_spcs]
+
+    mask = np.isin(frame.types, ions_types)
+
     if vec_idx > 2 or vec_idx < 0:
         raise ValueError("I_vector must be [1, 0, 0], [0, 1, 0], or [0, 0, 1]")
 
-    qs = frame.get_charges()
+    qs = frame.get_charges()[mask]
 
-    vs = frame.velocities[:, vec_idx]
+    vs = frame.velocities[:, vec_idx][mask]
 
     L = frame.box.dims[vec_idx]
 
-    return np.sum(qs*vs / L)
+    return np.sum(qs*vs) / L
 
-def qv_current_time_averaged(simulation : Simulation, I_vector = [1, 0, 0], n_averaging_blocks = 10):
+def qv_current_time_averaged(simulation : Simulation, ion_spcs : list[str], I_vector = [1, 0, 0], n_averaging_blocks = 10):
     '''
     '''
     vec_idx = I_vector.index(1)
@@ -31,7 +35,7 @@ def qv_current_time_averaged(simulation : Simulation, I_vector = [1, 0, 0], n_av
     I = []
     
     for frame in tqdm(simulation, total = len(simulation)):
-        I.append(qv_current(frame, I_vector))
+        I.append(qv_current(frame, ion_spcs, I_vector))
     
     I = get_n_even_chunks(I, n_averaging_blocks)
 

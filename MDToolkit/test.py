@@ -31,7 +31,9 @@ reader = LAMMPS_CustomDump_Reader(filepath, topol)
 
 simulation = Simulation(filepath, topol, LAMMPS_CustomDump_Reader)
 
-r = axial_density_time_averaged(simulation, bin_width = 0.25)
+vols = [BoxVolume([-52.074, -25.5648857972, -27.155], [-1.0, 25.5648857972, 27.155]), BoxVolume([1.0, -25.5648857972, -27.155], [52.091, 25.5648857972, 27.155])]
+
+r = axial_density_time_averaged(simulation, volumes = vols, bin_width = 0.25)
 
 import matplotlib.pyplot as plt
 
