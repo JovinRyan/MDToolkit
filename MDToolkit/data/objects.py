@@ -18,6 +18,11 @@ class Topology:
     if charges_dict is not None:
       for key in charges_dict.keys():
         self.charges[key] = charges_dict[key]
+  
+  def rewrite_charges(self, charges_dict : dict):
+    for key in charges_dict.keys():
+      if key in self.charges.keys():
+        self.charges[key] = charges_dict[key]
 
 class Frame:
   '''
