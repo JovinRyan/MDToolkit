@@ -147,3 +147,9 @@ def lammps_data_file_to_frame(filepath : Path, topology : Topology = None, eleme
     frame.topology.rewrite_charges(type_to_charge)
 
     return frame
+
+def packmol_pdb_file_to_frame(filepath : Path, topology : Topology = None):
+    '''
+    '''
+    with open(filepath, "r") as file:
+        lines = file.readlines()
