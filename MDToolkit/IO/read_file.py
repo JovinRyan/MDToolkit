@@ -148,11 +148,7 @@ def lammps_data_file_to_frame(filepath : Path, topology : Topology = None, eleme
 
     return frame
 
-def packmol_pdb_file_to_frame(
-    filepath: Path,
-    topology: Topology = None,
-    elements_dict=create_elements_dictionary()
-):
+def packmol_pdb_file_to_frame(filepath: Path, topology: Topology = None, elements_dict=create_elements_dictionary()):
     '''
     '''
 
@@ -219,3 +215,22 @@ def packmol_pdb_file_to_frame(
     frame.positions = frame.positions[order]
 
     return frame
+
+def cif_file_to_frame(file_path : Path, topology : Topology = None, elements_dict = create_elements_dictionary()):
+    '''
+    '''
+
+    with open(file_path, "r") as file:
+        for line in file.readlines():
+            if line.startswith("_cell_length_a"):
+                min_x = 0
+                max_x = float(line.split(" ")[-1])
+            if line.startswith("_cell_length_b"):
+                min_y = 0
+                max_y = float(line.split(" ")[-1])
+            if line.startswith("_cell_length_c"):
+                min_z = 0
+                max_z = float(line.split(" ")[-1])
+    
+
+    box = BoxVolume([min_x, min_y, min_z], [max_x, max_y, max_z])

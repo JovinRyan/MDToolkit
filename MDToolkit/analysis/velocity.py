@@ -1,12 +1,9 @@
-import os
-import numpy as np
-import scipy.constants as sc
-from collections.abc import Sequence
-from concurrent.futures import ProcessPoolExecutor, as_completed
-from tqdm import tqdm
-from MDToolkit.data.objects import Simulation, StructuredSystem, Molecule, Atom
-from MDToolkit.utils.misc_utils import sort_atom_list_by_index, get_n_even_chunks
-from MDToolkit.data.misc_objects import Volume, BoxVolume, CylinderVolume
+import numpy as np 
+from MDToolkit.data.objects import Topology, Frame, Simulation
+
+def axial_velocity_profile(frame : Frame):
+    '''
+    '''
 
 def radial_velocity_profile(system: StructuredSystem, cyl_volume : CylinderVolume, bins = 250):
     '''
