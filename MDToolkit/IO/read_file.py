@@ -148,8 +148,74 @@ def lammps_data_file_to_frame(filepath : Path, topology : Topology = None, eleme
 
     return frame
 
-def packmol_pdb_file_to_frame(filepath : Path, topology : Topology = None):
+def packmol_pdb_file_to_frame(
+    filepath: Path,
+    topology: Topology = None,
+    elements_dict=create_elements_dictionary()
+):
     '''
     '''
-    with open(filepath, "r") as file:
-        lines = file.readlines()
+
+    atom_data = []
+
+    with open(filepath, "r", encoding="ascii") as f:
+        for line in f:
+
+            if not line.startswith(("ATOM", "HETATM")):
+                continue
+
+            atom_data.append({
+                "id": int(line[6:11]),
+                "mol": int(line[22:26]),
+                "element": line[76:78].strip(),
+                "x": float(line[30:38]),
+                "y": float(line[38:46]),
+                "z": float(line[46:54]),
+            })
+
+    if topology is None:
+
+        unique_elements = sorted({
+            atom["element"]
+            for atom in atom_data
+        })
+
+        type_mapping = {
+            i + 1: element
+            for i, element in enumerate(unique_elements)
+        }
+
+        topology = Topology(type_mapping, elements_dict)
+
+    element_to_type = {
+        element: atom_type
+        for atom_type, element in topology.type_mapping.items()
+    }
+
+    frame = Frame(topology)
+
+    frame.num_atoms = len(atom_data)
+
+    frame.ids = np.empty(frame.num_atoms, dtype=np.int32)
+    frame.types = np.empty(frame.num_atoms, dtype=np.int32)
+    frame.mol_ids = np.empty(frame.num_atoms, dtype=np.int32)
+    frame.positions = np.empty((frame.num_atoms, 3), dtype=np.float64)
+
+    for i, atom in enumerate(atom_data):
+
+        frame.ids[i] = atom["id"]
+        frame.types[i] = element_to_type[atom["element"]]
+        frame.mol_ids[i] = atom["mol"]
+
+        frame.positions[i, 0] = atom["x"]
+        frame.positions[i, 1] = atom["y"]
+        frame.positions[i, 2] = atom["z"]
+
+    order = np.argsort(frame.ids)
+
+    frame.ids = frame.ids[order]
+    frame.types = frame.types[order]
+    frame.mol_ids = frame.mol_ids[order]
+    frame.positions = frame.positions[order]
+
+    return frame

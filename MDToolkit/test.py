@@ -3,13 +3,18 @@ from MDToolkit.data.objects import Topology, Frame, Simulation, LAMMPS_CustomDum
 from MDToolkit.data.misc_objects import BoxVolume
 from MDToolkit.utils.structure_file_utils import create_elements_dictionary
 from MDToolkit.analysis.density import axial_density, axial_density_time_averaged
-from MDToolkit.IO.read_file import lammps_data_file_to_topology, lammps_data_file_to_frame
+from MDToolkit.IO.read_file import lammps_data_file_to_topology, lammps_data_file_to_frame, packmol_pdb_file_to_frame
+from MDToolkit.IO.write_file import write_lammps_data_file
+from MDToolkit.paths import OUTPUT
 
-filedir = "/media/jrjoseph/Elements/projects/training/graphene_water_kcl_ls6/"
-filename = "Graphene_Water_KCl_2.5V_relaxed.data"
+
+filedir = OUTPUT
+filename = "ionic_liquid_box.pdb"
 
 filepath = os.path.join(filedir, filename)
 
-frame = lammps_data_file_to_frame(filepath)
+frame = packmol_pdb_file_to_frame(filepath)
 
-print(frame.topology.charges)
+frame.set_box_from_positions()
+
+write_lammps_data_file(frame)

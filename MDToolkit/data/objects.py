@@ -23,6 +23,21 @@ class Topology:
     for key in charges_dict.keys():
       if key in self.charges.keys():
         self.charges[key] = charges_dict[key]
+  
+  def get_bond_types(self):
+    if self.bonds is None:
+      return None 
+    else:
+      types = np.unique(self.bonds[:, 1])
+      return len(types)
+  
+  def get_angle_types(self):
+    if self.angles is None:
+      return None 
+    else:
+      types = np.unique(self.angles[:, 1])
+      return len(types)
+
 
 class Frame:
   '''
@@ -59,6 +74,18 @@ class Frame:
       masses[i] = self.topology.elements_dict[element]["AtomicMass"]
     
     return masses
+  
+  def set_box_from_positions(self, buffer = [0, 0, 0]):
+    min_x = min(self.positions[:, 0])
+    max_x = max(self.positions[:, 0])
+
+    min_y = min(self.positions[:, 1])
+    max_y = max(self.positions[:, 1])
+
+    min_z = min(self.positions[:, 2])
+    max_z = max(self.positions[:, 2])
+
+    self.box = BoxVolume([min_x - buffer[0] / 2, min_y - buffer[1] / 2, min_z - buffer[2] / 2], [max_x + buffer[0] / 2, max_y + buffer[1] / 2, max_z + buffer[2] / 2])
 
 class Reader(ABC):
   '''
