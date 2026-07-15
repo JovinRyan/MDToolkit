@@ -1,7 +1,7 @@
 from pathlib import Path
 import numpy as np
 from MDToolkit.data.objects import Frame, Topology
-from MDToolkit.data.misc_objects import BoxVolume
+from MDToolkit.data.misc_objects import BoxVolume, TriclinicBoxVolume
 from MDToolkit.utils.structure_file_utils import create_elements_dictionary
 
 def lammps_data_file_to_topology(filepath, elements_dict : dict = None):
@@ -220,17 +220,149 @@ def cif_file_to_frame(file_path : Path, topology : Topology = None, elements_dic
     '''
     '''
 
-    with open(file_path, "r") as file:
-        for line in file.readlines():
-            if line.startswith("_cell_length_a"):
-                min_x = 0
-                max_x = float(line.split(" ")[-1])
-            if line.startswith("_cell_length_b"):
-                min_y = 0
-                max_y = float(line.split(" ")[-1])
-            if line.startswith("_cell_length_c"):
-                min_z = 0
-                max_z = float(line.split(" ")[-1])
-    
+    a = b = c = None
+    alpha = beta = gamma = None
 
-    box = BoxVolume([min_x, min_y, min_z], [max_x, max_y, max_z])
+    atom_data = []
+
+    in_atom_loop = False
+
+    with open(file_path, "r", encoding="ascii") as file:
+
+        for line in file:
+
+            line = line.strip()
+
+            if not line:
+                continue
+
+            if line.startswith("_cell_length_a"):
+                a = float(line.split()[-1])
+
+            elif line.startswith("_cell_length_b"):
+                b = float(line.split()[-1])
+
+            elif line.startswith("_cell_length_c"):
+                c = float(line.split()[-1])
+
+            elif line.startswith("_cell_angle_alpha"):
+                alpha = float(line.split()[-1])
+
+            elif line.startswith("_cell_angle_beta"):
+                beta = float(line.split()[-1])
+
+            elif line.startswith("_cell_angle_gamma"):
+                gamma = float(line.split()[-1])
+
+            elif line.startswith("_atom_site_type_symbol"):
+                in_atom_loop = True
+                continue
+
+            elif in_atom_loop:
+
+                if line.startswith("_"):
+                    continue
+
+                if line.startswith("loop_"):
+                    break
+
+                fields = line.split()
+
+                atom_data.append({
+                    "element" : ''.join(
+                        c for c in fields[0]
+                        if c.isalpha()
+                    ),
+                    "fractional_position" : [
+                        float(fields[3]),
+                        float(fields[4]),
+                        float(fields[5])
+                    ]
+                })
+
+    if topology is None:
+
+        unique_elements = sorted({
+            atom["element"]
+            for atom in atom_data
+        })
+
+        type_mapping = {
+            i + 1 : element
+            for i, element in enumerate(unique_elements)
+        }
+
+        topology = Topology(
+            type_mapping,
+            elements_dict
+        )
+
+    element_to_type = {
+        element : atom_type
+        for atom_type, element in topology.type_mapping.items()
+    }
+
+    frame = Frame(topology)
+
+    tol = 1e-6
+
+    if (
+        np.isclose(alpha, 90.0, atol=tol) and
+        np.isclose(beta, 90.0, atol=tol) and
+        np.isclose(gamma, 90.0, atol=tol)
+    ):
+
+        frame.box = BoxVolume(
+            [0.0, 0.0, 0.0],
+            [a, b, c]
+        )
+
+    else:
+
+        frame.box = TriclinicBoxVolume(
+            [a, b, c],
+            [alpha, beta, gamma]
+        )
+
+    frame.num_atoms = len(atom_data)
+
+    frame.ids = np.arange(
+        1,
+        frame.num_atoms + 1,
+        dtype=np.int32
+    )
+
+    frame.types = np.empty(
+        frame.num_atoms,
+        dtype=np.int32
+    )
+
+    fractional_positions = np.empty(
+        (frame.num_atoms, 3),
+        dtype=np.float64
+    )
+
+    for i, atom in enumerate(atom_data):
+
+        frame.types[i] = element_to_type[
+            atom["element"]
+        ]
+
+        fractional_positions[i] = atom[
+            "fractional_position"
+        ]
+
+    if isinstance(frame.box, BoxVolume):
+
+        frame.positions = (
+            fractional_positions *
+            frame.box.dims
+        )
+
+    else:
+
+        frame.positions = frame.box.fractional_to_cartesian_positions(
+            fractional_positions
+        )
+
+    return frame

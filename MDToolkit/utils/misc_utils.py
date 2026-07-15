@@ -73,3 +73,29 @@ def get_n_even_chunks(list_object, n_chunks=10, alternate_trimming = True):
         trimmed[i * chunk_size:(i + 1) * chunk_size]
         for i in range(n_chunks)
     ]
+
+def rotation_matrix(angles):
+    '''
+    '''
+
+    x, y, z = np.deg2rad(angles)
+
+    Rx = np.array([
+        [1, 0, 0],
+        [0, np.cos(x), -np.sin(x)],
+        [0, np.sin(x), np.cos(x)]
+    ])
+
+    Ry = np.array([
+        [np.cos(y), 0, np.sin(y)],
+        [0, 1, 0],
+        [-np.sin(y), 0, np.cos(y)]
+    ])
+
+    Rz = np.array([
+        [np.cos(z), -np.sin(z), 0],
+        [np.sin(z), np.cos(z), 0],
+        [0, 0, 1]
+    ])
+
+    return Rz @ Ry @ Rx

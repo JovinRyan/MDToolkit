@@ -87,6 +87,179 @@ class Frame:
 
     self.box = BoxVolume([min_x - buffer[0] / 2, min_y - buffer[1] / 2, min_z - buffer[2] / 2], [max_x + buffer[0] / 2, max_y + buffer[1] / 2, max_z + buffer[2] / 2])
 
+  def replicate(self, images = [3, 3, 3]):
+    '''
+    '''
+
+    images = np.asarray(images, dtype = np.int32)
+
+    if np.any(images < 1):
+        raise ValueError(
+            "All image counts must be at least 1."
+        )
+
+    translations = [
+        self.box.image_translation([i, j, k])
+        for i in range(images[0])
+        for j in range(images[1])
+        for k in range(images[2])
+    ]
+
+    supercell = Frame(self.topology)
+
+    supercell.timestep = self.timestep
+    supercell.box = self.box.replicate(images)
+
+    n_images = len(translations)
+
+    supercell.num_atoms = self.num_atoms * n_images
+
+    supercell.positions = np.concatenate([
+        self.positions + translation
+        for translation in translations
+    ])
+
+    supercell.ids = np.arange(
+        1,
+        supercell.num_atoms + 1,
+        dtype = np.int32
+    )
+
+    if self.types is not None:
+
+        supercell.types = np.tile(
+            self.types,
+            n_images
+        )
+
+    if self.mol_ids is not None:
+
+        supercell.mol_ids = np.tile(
+            self.mol_ids,
+            n_images
+        )
+
+    if self.unwrapped_positions is not None:
+
+        supercell.unwrapped_positions = np.concatenate([
+            self.unwrapped_positions + translation
+            for translation in translations
+        ])
+
+    if self.velocities is not None:
+
+        supercell.velocities = np.tile(
+            self.velocities,
+            (n_images, 1)
+        )
+
+    if self.forces is not None:
+
+        supercell.forces = np.tile(
+            self.forces,
+            (n_images, 1)
+        )
+
+    return supercell
+  
+  def delete_atoms_outside_ranges(self, x_range = None, y_range = None, z_range = None):
+    '''
+    '''
+    mask = np.ones(self.num_atoms, dtype=bool)
+
+    if x_range is not None:
+      mask &= (self.positions[:, 0] >= x_range[0]) & (self.positions[:, 0] <= x_range[1])
+
+    if y_range is not None:
+      mask &= (self.positions[:, 1] >= y_range[0]) & (self.positions[:, 1] <= y_range[1])
+
+    if z_range is not None:
+      mask &= (self.positions[:, 2] >= z_range[0]) & (self.positions[:, 2] <= z_range[1])
+
+    if self.ids is not None:
+      self.ids = self.ids[mask]
+
+    if self.types is not None:
+      self.types = self.types[mask]
+
+    if self.mol_ids is not None:
+      self.mol_ids = self.mol_ids[mask]
+
+    if self.positions is not None:
+      self.positions = self.positions[mask]
+
+    if self.unwrapped_positions is not None:
+      self.unwrapped_positions = self.unwrapped_positions[mask]
+
+    if self.velocities is not None:
+      self.velocities = self.velocities[mask]
+
+    if self.forces is not None:
+      self.forces = self.forces[mask]
+
+    self.num_atoms = np.sum(mask)
+
+    if self.num_atoms > 0:
+      self.box = BoxVolume(
+          self.positions.min(axis=0),
+          self.positions.max(axis=0))
+  
+  def rotate(self, angles, origin = None):
+    '''
+    '''
+
+    angles = np.deg2rad(angles)
+
+    x = angles[0]
+    y = angles[1]
+    z = angles[2]
+
+    Rx = np.array([
+        [1, 0, 0],
+        [0, np.cos(x), -np.sin(x)],
+        [0, np.sin(x), np.cos(x)]
+    ])
+
+    Ry = np.array([
+        [np.cos(y), 0, np.sin(y)],
+        [0, 1, 0],
+        [-np.sin(y), 0, np.cos(y)]
+    ])
+
+    Rz = np.array([
+        [np.cos(z), -np.sin(z), 0],
+        [np.sin(z), np.cos(z), 0],
+        [0, 0, 1]
+    ])
+
+    rotation_matrix = Rz @ Ry @ Rx
+
+    if origin is None:
+      origin = (self.box.mins + self.box.maxs) / 2
+
+    origin = np.asarray(origin)
+
+    if self.positions is not None:
+      self.positions = (
+          self.positions - origin
+      ) @ rotation_matrix.T + origin
+
+    if self.unwrapped_positions is not None:
+      self.unwrapped_positions = (
+          self.unwrapped_positions - origin
+      ) @ rotation_matrix.T + origin
+
+    if self.velocities is not None:
+      self.velocities = self.velocities @ rotation_matrix.T
+
+    if self.forces is not None:
+      self.forces = self.forces @ rotation_matrix.T
+
+    self.box.rotate(
+        rotation_matrix,
+        origin
+    )
+
 class Reader(ABC):
   '''
   '''
