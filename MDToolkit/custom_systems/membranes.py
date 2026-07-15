@@ -97,6 +97,8 @@ def create_2D_membrane(frame: Frame, dims = [50, 50], rotation_angles = [0, 90, 
         frame.box.origin[2] + (box_lens[2] * 3 / 4)
     ]
 
+    print(z_range)
+
     frame.delete_atoms_outside_ranges(
         x_range = [0, math.ceil(dims[0] / original_box_lens[0]) * original_box_lens[0]],
         y_range = [0, math.ceil(dims[1] / original_box_lens[1]) * original_box_lens[1]],

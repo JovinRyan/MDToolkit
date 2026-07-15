@@ -9,7 +9,7 @@ from MDToolkit.paths import OUTPUT, CIF_FILES
 
 
 filedir = CIF_FILES
-filename = "MoS2.cif"
+filename = "C.cif"
 
 filepath = os.path.join(filedir, filename)
 

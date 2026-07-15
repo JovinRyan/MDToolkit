@@ -154,7 +154,7 @@ def packmol_pdb_file_to_frame(filepath: Path, topology: Topology = None, element
 
     atom_data = []
 
-    with open(filepath, "r", encoding="ascii") as f:
+    with open(filepath, "r") as f:
         for line in f:
 
             if not line.startswith(("ATOM", "HETATM")):
