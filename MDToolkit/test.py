@@ -1,7 +1,7 @@
 import os 
 from MDToolkit.data.objects import Topology, Frame, Simulation, LAMMPS_CustomDump_Reader
 from MDToolkit.data.misc_objects import BoxVolume
-from MDToolkit.custom_systems.membranes import create_2D_membrane
+from MDToolkit.custom_systems.membranes import create_2D_membrane, create_pore
 from MDToolkit.IO.read_file import lammps_data_file_to_topology, lammps_data_file_to_frame, packmol_pdb_file_to_frame, cif_file_to_frame
 from MDToolkit.IO.write_file import write_lammps_data_file
 from MDToolkit.paths import OUTPUT, CIF_FILES
@@ -19,6 +19,8 @@ frame = cif_file_to_frame(filepath)
 
 frame = create_2D_membrane(frame)
 
-write_lammps_data_file(frame, atom_style = "atomic")
+frame.populate_stoich_dict()
 
-print(frame.positions)
+frame = create_pore(frame, radius = 5.0, position = [0, 0])
+
+write_lammps_data_file(frame, atom_style = "atomic")

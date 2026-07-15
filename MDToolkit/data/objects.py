@@ -18,6 +18,7 @@ class Topology:
     if charges_dict is not None:
       for key in charges_dict.keys():
         self.charges[key] = charges_dict[key]
+    self.stoich_dict = {key : 1.0 for key in type_mapping.keys()}
   
   def rewrite_charges(self, charges_dict : dict):
     for key in charges_dict.keys():
@@ -75,6 +76,16 @@ class Frame:
     
     return masses
   
+  def populate_stoich_dict(self):
+    for key in self.topology.stoich_dict:
+      self.topology.stoich_dict[key] = (self.types == key).sum()
+    
+    min_count = min(self.topology.stoich_dict.values())
+
+    for key in self.topology.stoich_dict:
+      self.topology.stoich_dict[key] = self.topology.stoich_dict[key] / min_count
+
+
   def set_box_from_positions(self, buffer = [0, 0, 0]):
     min_x = min(self.positions[:, 0])
     max_x = max(self.positions[:, 0])
@@ -161,6 +172,26 @@ class Frame:
         )
 
     return supercell
+  
+  def set_center(self, center = [0, 0, 0]):
+    '''
+    '''
+
+    center = np.asarray(center, dtype=float)
+
+    current_center = (
+        self.box.origin
+        + 0.5 * np.sum(self.box.lattice_vectors, axis=1)
+    )
+
+    translation = center - current_center
+
+    self.positions += translation
+
+    if self.unwrapped_positions is not None:
+        self.unwrapped_positions += translation
+
+    self.box.set_center(center)
   
   def delete_atoms_outside_ranges(self, x_range = None, y_range = None, z_range = None):
     '''

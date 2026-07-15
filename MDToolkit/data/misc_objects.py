@@ -130,6 +130,22 @@ class BoxVolume(Volume):
     def central_box_lengths(self):
         return np.array(self.dims)
 
+    def set_center(self, center):
+        '''
+        '''
+
+        center = np.asarray(center, dtype=float)
+
+        current_center = (self.mins + self.maxs) / 2
+
+        translation = center - current_center
+
+        self._mins += translation
+        self._maxs += translation
+
+        self.point1 += translation
+        self.point2 += translation    
+
     def discretize_axial(self, n_bins=250, axis="x"):
 
         axis_map = {
@@ -649,3 +665,18 @@ class TriclinicBoxVolume(Volume):
         image = np.asarray(image)
 
         return TriclinicBoxVolume([self.a * image[0], self.b * image[1], self.c * image[2]], [self.alpha, self.beta, self.gamma], origin = self.origin)
+    
+    def set_center(self, center):
+        '''
+        '''
+
+        center = np.asarray(center, dtype=float)
+
+        current_center = (
+            self.origin
+            + 0.5 * np.sum(self.H, axis=1)
+        )
+
+        translation = center - current_center
+
+        self._origin += translation
