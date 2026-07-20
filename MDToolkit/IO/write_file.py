@@ -67,4 +67,19 @@ def write_lammps_data_file(frame : Frame, file_name = "output.data", file_path =
                     values.append(frame.positions[i,2])
             f.write(" ".join(map(str, values)))
             f.write("\n")
+        
+        if frame.topology.bonds is not None:
+            f.write("\n")
+            f.write("Bonds\n\n")
+            for bond in frame.topology.bonds:
+                f.write(" ".join(map(str, bond)))
+                f.write("\n")
+        
+        if frame.topology.angles is not None:
+            f.write("\n")
+            f.write("Angles\n\n")
+            for angle in frame.topology.angles:
+                f.write(" ".join(map(str, angle)))
+                f.write("\n")
+
     print(f"Successfully written file to " + file)

@@ -2,7 +2,7 @@ import os
 import numpy as np
 from pathlib import Path
 from abc import ABC, abstractmethod
-from MDToolkit.paths import ELEMENTS_CSV
+from MDToolkit.paths import ELEMENTS_CSV, MOLECULAR_DATA_JSON
 from MDToolkit.utils.structure_file_utils import create_elements_dictionary
 from MDToolkit.data.misc_objects import BoxVolume
 
@@ -97,6 +97,372 @@ class Frame:
     max_z = max(self.positions[:, 2])
 
     self.box = BoxVolume([min_x - buffer[0] / 2, min_y - buffer[1] / 2, min_z - buffer[2] / 2], [max_x + buffer[0] / 2, max_y + buffer[1] / 2, max_z + buffer[2] / 2])
+
+  def iter_molecules(self):
+    '''
+    '''
+    if self.mol_ids is None:
+      raise ValueError("Frame does not contain molecule IDs.")
+
+    for mol_id in np.unique(self.mol_ids):
+      indices = np.flatnonzero(self.mol_ids == mol_id)
+      yield mol_id, indices
+
+  def set_molecule_bonds_by_type_indices(self, molecular_data_json_file = MOLECULAR_DATA_JSON):
+    '''
+    Populate topology bonds from molecular templates.
+    '''
+
+    import json
+    from collections import Counter
+
+    with open(molecular_data_json_file, "r") as f:
+      molecular_data = json.load(f)["molecules"]
+
+    bonds = []
+
+    bond_id = 1
+
+    for _, indices in self.iter_molecules():
+
+      elements = [
+          self.topology.type_mapping[atom_type]
+          for atom_type in self.types[indices]
+      ]
+
+      counts = Counter(elements)
+
+      template = None
+
+      for molecule in molecular_data.values():
+
+        molecular_counts = Counter()
+
+        formula = molecule["chemical_formula"]
+
+        i = 0
+
+        while i < len(formula):
+
+          element = formula[i]
+          i += 1
+
+          if i < len(formula) and formula[i].islower():
+            element += formula[i]
+            i += 1
+
+          number = ""
+
+          while i < len(formula) and formula[i].isdigit():
+            number += formula[i]
+            i += 1
+
+          molecular_counts[element] = int(number) if number else 1
+
+        if molecular_counts == counts:
+          template = molecule
+          break
+
+      if template is None:
+        continue
+
+      for bond_type, (i, j) in zip(
+          template["bond_types"],
+          template["bond_atom_indices"]
+      ):
+
+        bonds.append([
+            bond_id,
+            bond_type,
+            self.ids[indices[i]],
+            self.ids[indices[j]]
+        ])
+
+        bond_id += 1
+
+    self.topology.bonds = np.asarray(
+        bonds,
+        dtype=np.int32
+    )
+  
+  def set_angles_by_bonds(self):
+    '''
+    '''
+    if self.topology.bonds is None:
+      raise ValueError("Topology does not contain bonds.")
+
+    angles = []
+
+    angle_id = 1
+
+    neighbors = {}
+
+    for bond in self.topology.bonds:
+
+      atom_1 = bond[2]
+      atom_2 = bond[3]
+
+      if atom_1 not in neighbors:
+        neighbors[atom_1] = []
+
+      if atom_2 not in neighbors:
+        neighbors[atom_2] = []
+
+      neighbors[atom_1].append(atom_2)
+      neighbors[atom_2].append(atom_1)
+
+
+    for center, bonded_atoms in neighbors.items():
+
+      for i in range(len(bonded_atoms)):
+        for j in range(i + 1, len(bonded_atoms)):
+
+          angles.append([
+              angle_id,
+              1,
+              bonded_atoms[i],
+              center,
+              bonded_atoms[j]
+          ])
+
+          angle_id += 1
+
+
+    self.topology.angles = np.asarray(
+        angles,
+        dtype=np.int32
+    )
+  
+  def set_mol_id_for_all_atoms(self, id = 1):
+    self.mol_ids = np.full(len(self.ids), id)
+  
+  @staticmethod
+  def combine(frames):
+    '''
+    '''
+
+    if len(frames) == 0:
+      raise ValueError("At least one frame must be provided.")
+
+    global_type_mapping = {}
+    global_charges = {}
+
+    type_lookup = {}
+    type_maps = []
+
+    next_type = 1
+
+    for frame in frames:
+
+      type_map = {}
+
+      for local_type, element in frame.topology.type_mapping.items():
+
+        key = (
+            element,
+            frame.topology.charges[local_type]
+        )
+
+        if key not in type_lookup:
+
+          type_lookup[key] = next_type
+
+          global_type_mapping[next_type] = element
+
+          global_charges[next_type] = (
+              frame.topology.charges[local_type]
+          )
+
+          next_type += 1
+
+        type_map[local_type] = type_lookup[key]
+
+      type_maps.append(type_map)
+
+    topology = Topology(
+        type_mapping = global_type_mapping,
+        elements_dict = frames[0].topology.elements_dict,
+        charges_dict = global_charges
+    )
+
+    combined = Frame(topology)
+
+    atom_offset = 0
+    mol_offset = 0
+    bond_offset = 0
+    angle_offset = 0
+
+    ids = []
+    mol_ids = []
+    types = []
+
+    positions = []
+    unwrapped_positions = []
+    velocities = []
+    forces = []
+
+    bonds = []
+    angles = []
+
+    combined.timestep = frames[0].timestep
+
+    for frame_idx, frame in enumerate(frames):
+
+      new_ids = np.arange(
+          atom_offset + 1,
+          atom_offset + frame.num_atoms + 1,
+          dtype=np.int32
+      )
+
+      if frame.ids is not None:
+        id_map = dict(zip(frame.ids, new_ids))
+
+      else:
+        id_map = dict(
+            zip(
+                np.arange(1, frame.num_atoms + 1),
+                new_ids
+            )
+        )
+
+      ids.append(new_ids)
+
+      if frame.mol_ids is not None:
+
+        unique_mols = np.unique(frame.mol_ids)
+
+        mol_map = {
+            mol: mol_offset + i + 1
+            for i, mol in enumerate(unique_mols)
+        }
+
+        mol_ids.append(
+            np.array(
+                [
+                    mol_map[mol]
+                    for mol in frame.mol_ids
+                ],
+                dtype=np.int32
+            )
+        )
+
+        mol_offset += len(unique_mols)
+
+      else:
+
+        mol_ids.append(
+            np.full(
+                frame.num_atoms,
+                mol_offset + 1,
+                dtype=np.int32
+            )
+        )
+
+        mol_offset += 1
+
+      if frame.types is not None:
+
+        types.append(
+            np.array(
+                [
+                    type_maps[frame_idx][atom_type]
+                    for atom_type in frame.types
+                ],
+                dtype=np.int32
+            )
+        )
+
+      if frame.positions is not None:
+        positions.append(frame.positions)
+
+      if frame.unwrapped_positions is not None:
+        unwrapped_positions.append(frame.unwrapped_positions)
+
+      if frame.velocities is not None:
+        velocities.append(frame.velocities)
+
+      if frame.forces is not None:
+        forces.append(frame.forces)
+
+      if frame.topology.bonds is not None:
+
+        frame_bonds = frame.topology.bonds.copy()
+
+        frame_bonds[:, 0] += bond_offset
+
+        frame_bonds[:, 2] = np.array(
+            [
+                id_map[i]
+                for i in frame_bonds[:, 2]
+            ],
+            dtype=np.int32
+        )
+
+        frame_bonds[:, 3] = np.array(
+            [
+                id_map[i]
+                for i in frame_bonds[:, 3]
+            ],
+            dtype=np.int32
+        )
+
+        bonds.append(frame_bonds)
+
+        bond_offset += len(frame_bonds)
+
+      if frame.topology.angles is not None:
+
+        frame_angles = frame.topology.angles.copy()
+
+        frame_angles[:, 0] += angle_offset
+
+        frame_angles[:, 2:] = np.array(
+            [
+                [
+                    id_map[i]
+                    for i in angle
+                ]
+                for angle in frame_angles[:, 2:]
+            ],
+            dtype=np.int32
+        )
+
+        angles.append(frame_angles)
+
+        angle_offset += len(frame_angles)
+
+      atom_offset += frame.num_atoms
+
+    combined.num_atoms = atom_offset
+
+    combined.ids = np.concatenate(ids)
+
+    combined.mol_ids = np.concatenate(mol_ids)
+
+    if types:
+      combined.types = np.concatenate(types)
+
+    if positions:
+      combined.positions = np.concatenate(positions)
+
+    if unwrapped_positions:
+      combined.unwrapped_positions = np.concatenate(unwrapped_positions)
+
+    if velocities:
+      combined.velocities = np.concatenate(velocities)
+
+    if forces:
+      combined.forces = np.concatenate(forces)
+
+    if bonds:
+      combined.topology.bonds = np.concatenate(bonds)
+
+    if angles:
+      combined.topology.angles = np.concatenate(angles)
+
+    combined.set_box_from_positions()
+
+    return combined
 
   def replicate(self, images = [3, 3, 3]):
     '''
@@ -290,6 +656,24 @@ class Frame:
         rotation_matrix,
         origin
     )
+  
+  def get_total_mass(self):
+    '''
+    '''
+    return sum(self.topology.elements_dict[self.topology.type_mapping[i]]["AtomicMass"] for i in self.types)
+  
+  def get_COM(self):
+    '''
+    '''
+    masses = np.array([self.topology.elements_dict[self.topology.type_mapping[i]]["AtomicMass"] for i in self.types])
+
+    total_mass = self.get_total_mass()
+
+    x_com = sum(self.positions[:, 0] * masses) / total_mass
+    y_com = sum(self.positions[:, 1] * masses) / total_mass
+    z_com = sum(self.positions[:, 2] * masses) / total_mass
+
+    return np.array([x_com, y_com, z_com])
 
 class Reader(ABC):
   '''
@@ -391,6 +775,9 @@ class LAMMPS_CustomDump_Reader(Reader):
     if "type" in column_map:
       frame.types = np.empty(frame.num_atoms, dtype=np.int32)
     
+    if {"xu", "yu", "zu"} <= column_map.keys():
+      frame.unwrapped_positions = np.empty((frame.num_atoms, 3), dtype=np.float64)
+    
     for i, line in enumerate(frame_data[9:]):
       fields = line.split()
 
@@ -417,6 +804,11 @@ class LAMMPS_CustomDump_Reader(Reader):
 
       if frame.types is not None:
         frame.types[i] = int(fields[column_map["type"]])
+      
+      if frame.unwrapped_positions is not None:
+        frame.unwrapped_positions[i, 0] = float(fields[column_map["xu"]])
+        frame.unwrapped_positions[i, 1] = float(fields[column_map["yu"]])
+        frame.unwrapped_positions[i, 2] = float(fields[column_map["zu"]])
 
     if frame.ids is not None:
       order = np.argsort(frame.ids)
