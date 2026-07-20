@@ -697,21 +697,52 @@ class Simulation:
   '''
 
   def __init__(self, filepath : Path, topology : Topology, reader : type[Reader]):
-    self.reader = reader(filepath, topology)
+    self.readers = [reader(filepath, topology)]
     self.topology = topology
     self.filepath = filepath
 
   def __iter__(self):
-    return iter(self.reader)
+    yield from self.readers[0]
 
   def __getitem__(self, idx):
-    return self.reader.read_frame(idx)
+    return self.readers[0].read_frame(idx)
 
   def __len__(self):
-    return len(self.reader)
+    return len(self.readers[0])
   
   def close(self):
-    self.reader.close()
+    for reader in self.readers:
+      reader.close()
+
+class MultiSimulation(Simulation):
+  '''
+  '''
+  def __init__(self, filepaths : list[Path], topology : Topology, reader : type[Reader]):
+    self.readers = [reader(filepath, topology) for filepath in filepaths]
+    self.topology = topology
+    self.filepaths = filepaths
+    self._cumulative_lengths = np.cumsum([len(r) for r in self.readers])
+  
+  def __len__(self):
+    return self._cumulative_lengths[-1]
+  
+  def __iter__(self):
+    for reader in self.readers:
+      yield from reader
+  
+  def __getitem__(self, idx):
+    if idx < 0:
+      idx += len(self)
+    if idx < 0 or idx >= len(self):
+      raise IndexError(idx)
+    reader_idx = np.searchsorted(self._cumulative_lengths, idx, side="right")
+
+    if reader_idx == 0:
+      local_idx = idx 
+    else:
+      local_idx = idx - self._cumulative_lengths[reader_idx - 1]
+    
+    return self.readers[reader_idx].read_frame(local_idx)
 
 class LAMMPS_CustomDump_Reader(Reader):
   '''
