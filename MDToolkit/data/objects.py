@@ -39,7 +39,6 @@ class Topology:
       types = np.unique(self.angles[:, 1])
       return len(types)
 
-
 class Frame:
   '''
   '''
@@ -56,6 +55,8 @@ class Frame:
     self.forces = None
     self.topology = topology
     self.num_atoms = None
+    self._molecule_ids = None 
+    self._molecule_indices = None
   
   def get_charges(self) -> np.ndarray:
 
@@ -98,15 +99,41 @@ class Frame:
 
     self.box = BoxVolume([min_x - buffer[0] / 2, min_y - buffer[1] / 2, min_z - buffer[2] / 2], [max_x + buffer[0] / 2, max_y + buffer[1] / 2, max_z + buffer[2] / 2])
 
-  def iter_molecules(self):
+  def _build_molecule_index(self):
     '''
     '''
     if self.mol_ids is None:
       raise ValueError("Frame does not contain molecule IDs.")
+    
+    self._molecule_ids, inverse = np.unique(self.mol_ids, return_inverse=True)
+    self._molecule_indices = [np.flatnonzero(inverse == i) for i in range(len(self._molecule_ids))]
 
-    for mol_id in np.unique(self.mol_ids):
-      indices = np.flatnonzero(self.mol_ids == mol_id)
-      yield mol_id, indices
+  def iter_molecules(self, mask = None, mode = "whole"):
+    '''
+    '''
+    if self._molecule_indices is None:
+      self._build_molecule_index()
+
+    if mask is None:
+      for mol_id, indices in zip(self._molecule_ids, self._molecule_indices):
+        yield mol_id, indices
+    else:
+      for mol_id, indices in zip(self._molecule_ids, self._molecule_indices):
+
+        if mode == "whole":
+
+          if np.any(mask[indices]):
+            yield mol_id, indices
+
+        elif mode == "partial":
+
+          molecule_indices = indices[mask[indices]]
+
+          if len(molecule_indices) > 0:
+            yield mol_id, molecule_indices
+
+        else:
+          raise ValueError("mode must be 'whole' or 'partial'.")
 
   def set_molecule_bonds_by_type_indices(self, molecular_data_json_file = MOLECULAR_DATA_JSON):
     '''
@@ -691,6 +718,9 @@ class Reader(ABC):
   def __len__(self):
     pass
 
+  @abstractmethod
+  def get_metadata(self):
+    pass
 
 class Simulation:
   '''
@@ -713,6 +743,10 @@ class Simulation:
   def close(self):
     for reader in self.readers:
       reader.close()
+  
+  @property
+  def metadata(self):
+    return self.readers[0].get_metadata()
 
 class MultiSimulation(Simulation):
   '''
@@ -743,23 +777,43 @@ class MultiSimulation(Simulation):
       local_idx = idx - self._cumulative_lengths[reader_idx - 1]
     
     return self.readers[reader_idx].read_frame(local_idx)
+  
+  @property
+  def metadata(self):
+    return [reader.get_metadata() for reader in self.readers]
 
 class LAMMPS_CustomDump_Reader(Reader):
   '''
   '''
 
-  def __init__(self, filepath : Path, topology : Topology):
+  def __init__(self, filepath : Path, topology : Topology, frame_offsets = None, filesize = None):
     self.filepath = filepath
     self.topology = topology
 
     self._file = open(filepath, "rb")
-    self._file.seek(0, os.SEEK_END)
-    self._filesize = self._file.tell()
+
+    if filesize is None:
+      self._file.seek(0, os.SEEK_END)
+      self._filesize = self._file.tell()
+    else:
+      self._filesize = filesize
+
+    if frame_offsets is None:
+      self._frame_offsets = []
+      self._initialize()
+    else:
+      self._frame_offsets = frame_offsets
+    
     self._file.seek(0)
-
-    self._frame_offsets = []
-
-    self._initialize()
+  
+  def get_metadata(self):
+    '''
+    '''
+    return {
+      "filepath" : self.filepath,
+      "frame_offsets" : tuple(self._frame_offsets),
+      "filesize" : self._filesize
+    }
 
   def read_frame(self, idx : int) -> Frame: 
     self._file.seek(self._frame_offsets[idx])

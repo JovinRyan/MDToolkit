@@ -1,5 +1,7 @@
 from pathlib import Path
 import numpy as np
+from io import StringIO
+import pandas as pd
 from MDToolkit.data.objects import Frame, Topology
 from MDToolkit.data.misc_objects import BoxVolume, TriclinicBoxVolume
 from MDToolkit.utils.structure_file_utils import create_elements_dictionary
@@ -366,3 +368,31 @@ def cif_file_to_frame(file_path : Path, topology : Topology = None, elements_dic
         )
 
     return frame
+
+def read_lammps_log_file(filepath: Path):
+    '''
+    Read the thermo output from a LAMMPS log file into a pandas DataFrame.
+    '''
+    with open(filepath, "r") as f:
+        lines = f.readlines()
+
+    start_idx = None
+    end_idx = None
+
+    for i, line in enumerate(lines):
+        if line.startswith("Per MPI rank memory allocation"):
+            start_idx = i + 1      # Header starts immediately after
+        elif start_idx is not None and line.startswith("Loop time of"):
+            end_idx = i            # Stop immediately before this line
+            break
+
+    if start_idx is None:
+        raise ValueError("Could not find start of thermo output.")
+    if end_idx is None:
+        raise ValueError("Could not find end of thermo output.")
+
+    return pd.read_csv(
+        StringIO("".join(lines[start_idx:end_idx])),
+        sep=r"\s+",
+        engine="python",
+    )
