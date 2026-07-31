@@ -747,6 +747,12 @@ class Simulation:
   @property
   def metadata(self):
     return self.readers[0].get_metadata()
+  
+  def iter_frame_tasks(self):
+    '''
+    '''
+    for i in range(len(self)):
+      yield self.metadata, i
 
 class MultiSimulation(Simulation):
   '''
@@ -777,6 +783,18 @@ class MultiSimulation(Simulation):
       local_idx = idx - self._cumulative_lengths[reader_idx - 1]
     
     return self.readers[reader_idx].read_frame(local_idx)
+  
+  def iter_frame_tasks(self):
+    '''
+    '''
+    offset = 0
+    for reader in self.readers:
+      metadata = reader.get_metadata()
+
+      for i in range(len(reader)):
+        yield metadata, i 
+
+      offset += len(reader)
   
   @property
   def metadata(self):
@@ -810,6 +828,7 @@ class LAMMPS_CustomDump_Reader(Reader):
     '''
     '''
     return {
+      "reader" : type(self),
       "filepath" : self.filepath,
       "frame_offsets" : tuple(self._frame_offsets),
       "filesize" : self._filesize

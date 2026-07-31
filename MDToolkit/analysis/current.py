@@ -1,3 +1,4 @@
+import os
 import numpy as np
 from tqdm.auto import tqdm
 from concurrent.futures import ProcessPoolExecutor
@@ -47,7 +48,6 @@ def qv_current_time_averaged(simulation : Simulation, ion_spcs : list[str], I_ve
         "std" : np.std(I)
     }
 
-    
 def frame_ion_volume_membership(frame : Frame, ion_spcs : list[str], v1 : Volume, v_transition : Volume, v2 : Volume):
     '''
     '''
@@ -60,27 +60,71 @@ def frame_ion_volume_membership(frame : Frame, ion_spcs : list[str], v1 : Volume
 
     return membership
 
-def translocation_current(simulation : Simulation, ion_spcs : list[str], v1 : Volume, v_transition : Volume, v2 : Volume):
+_readers = None 
+
+def _initialize_tranlocationI_worker(metadata_list, topology):
+
+    global _readers
+
+    _readers = {}
+
+    for metadata in metadata_list:
+
+        reader = metadata["reader"](
+            metadata["filepath"],
+            topology,
+            frame_offsets = metadata["frame_offsets"],
+            filesize = metadata["filesize"]
+        )
+
+        _readers[metadata["filepath"]] = reader
+
+def _frame_ion_volume_membership_worker(args):
+    metadata, idx, ion_spcs, v1, v_transition, v2 = args
+
+    reader = _readers[metadata["filepath"]]
+
+    frame = reader.read_frame(idx)
+
+    return (
+        frame.timestep, 
+        frame_ion_volume_membership(
+        frame,
+        ion_spcs=ion_spcs,
+        v1=v1,
+        v_transition=v_transition,
+        v2=v2
+    ))
+
+def translocation_current(simulation : Simulation, ion_spcs : list[str], v1 : Volume, v_transition : Volume, v2 : Volume, n_workers = os.cpu_count() // 2):
     '''
     '''
+    metadata = simulation.metadata
 
-    membership = []
-    timesteps = []
+    if not isinstance(metadata, list):
+        metadata = [metadata]
 
-    for frame in tqdm(simulation):
+    tasks = [
+        (frame_metadata, idx, ion_spcs, v1, v_transition, v2)
+        for frame_metadata, idx in simulation.iter_frame_tasks()
+    ]
 
-        membership.append(
-            frame_ion_volume_membership(
-                frame,
-                ion_spcs,
-                v1,
-                v_transition,
-                v2
+    with ProcessPoolExecutor(
+        max_workers=n_workers,
+        initializer=_initialize_tranlocationI_worker,
+        initargs=(metadata, simulation.topology)
+    ) as executor:
+
+        results = list(
+            tqdm(
+                executor.map(_frame_ion_volume_membership_worker, tasks),
+                total=len(tasks)
             )
         )
 
-        timesteps.append(frame.timestep)
+    timesteps, membership = zip(*results)
 
+    timesteps = np.asarray(timesteps)
     membership = np.stack(membership)
 
     first_frame = simulation[0]
