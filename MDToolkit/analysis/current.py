@@ -5,6 +5,7 @@ from concurrent.futures import ProcessPoolExecutor
 from MDToolkit.data.objects import Frame, Simulation
 from MDToolkit.utils.misc_utils import get_n_even_chunks
 from MDToolkit.data.misc_objects import Volume
+from scipy.signal import savgol_filter
 
 def qv_current(frame : Frame, ions_spcs : list[str], I_vector = [1, 0, 0]):
     '''
@@ -62,7 +63,7 @@ def frame_ion_volume_membership(frame : Frame, ion_spcs : list[str], v1 : Volume
 
 _readers = None 
 
-def _initialize_tranlocationI_worker(metadata_list, topology):
+def _initialize_ion_tranlocation_worker(metadata_list, topology):
 
     global _readers
 
@@ -96,7 +97,7 @@ def _frame_ion_volume_membership_worker(args):
         v2=v2
     ))
 
-def translocation_current(simulation : Simulation, ion_spcs : list[str], v1 : Volume, v_transition : Volume, v2 : Volume, n_workers = os.cpu_count() // 2):
+def ion_translocation(simulation : Simulation, ion_spcs : list[str], v1 : Volume, v_transition : Volume, v2 : Volume, n_workers = os.cpu_count() // 2):
     '''
     '''
     metadata = simulation.metadata
@@ -111,13 +112,13 @@ def translocation_current(simulation : Simulation, ion_spcs : list[str], v1 : Vo
 
     with ProcessPoolExecutor(
         max_workers=n_workers,
-        initializer=_initialize_tranlocationI_worker,
+        initializer=_initialize_ion_tranlocation_worker,
         initargs=(metadata, simulation.topology)
     ) as executor:
 
         results = list(
             tqdm(
-                executor.map(_frame_ion_volume_membership_worker, tasks),
+                executor.map(_frame_ion_volume_membership_worker, tasks, chunksize=500),
                 total=len(tasks)
             )
         )
@@ -202,4 +203,48 @@ def translocation_current(simulation : Simulation, ion_spcs : list[str], v1 : Vo
         "ion_translocations": ion_translocations,
         "charge_translocation": charge_translocation,
         "cumulative_charge_translocation": np.cumsum(charge_translocation)
+    }
+
+def ion_translocations_to_current(translocation_results: list[dict], window_length: int = 1501, polyorder: int = 5):
+    '''
+    '''
+
+    timesteps = translocation_results[0]["timesteps"]
+
+    cumulative_charge_translocation = np.stack(
+        [
+            result["cumulative_charge_translocation"]
+            for result in translocation_results
+        ]
+    )
+
+    cumulative_charge_translocation = np.mean(
+        cumulative_charge_translocation,
+        axis=0
+    )
+
+    dt = np.mean(np.diff(timesteps))
+
+    current = savgol_filter(
+        cumulative_charge_translocation,
+        window_length=window_length,
+        polyorder=polyorder,
+        deriv=1,
+        delta=dt,
+        mode="interp"
+    )
+
+    smoothed_cumulative_charge_translocation = savgol_filter(
+        cumulative_charge_translocation,
+        window_length=window_length,
+        polyorder=polyorder,
+        deriv=0,
+        mode="interp"
+    )
+
+    return {
+        "timesteps": timesteps,
+        "current": current,
+        "cumulative_charge_translocation": cumulative_charge_translocation,
+        "smoothed_cumulative_charge_translocation": smoothed_cumulative_charge_translocation
     }

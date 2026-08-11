@@ -1,4 +1,5 @@
 import os 
+import pandas as pd 
 from MDToolkit.data.objects import Topology, Frame 
 from MDToolkit.paths import OUTPUT
 
@@ -83,3 +84,11 @@ def write_lammps_data_file(frame : Frame, file_name = "output.data", file_path =
                 f.write("\n")
 
     print(f"Successfully written file to " + file)
+
+def export_numeric_data(data : dict, file_name : str, file_path = OUTPUT):
+    '''
+    '''
+    df = pd.DataFrame(data)
+    df.to_csv(os.path.join(file_path, file_name), index = False)
+
+    print("CSV file written to: " + str(os.path.join(file_path, file_name)))
