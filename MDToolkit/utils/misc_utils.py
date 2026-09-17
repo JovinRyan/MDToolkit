@@ -2,6 +2,7 @@ import math
 import re
 import decimal
 from itertools import islice
+import numpy as np
 
 def is_real_float(value):
 
@@ -99,3 +100,5 @@ def rotation_matrix(angles):
     ])
 
     return Rz @ Ry @ Rx
+
+# def flatten_dict(nested_dict: dict, sep = "_"):

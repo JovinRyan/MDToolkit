@@ -60,7 +60,12 @@ def lammps_data_file_to_frame(filepath : Path, topology : Topology = None, eleme
     with open(filepath, "r") as f:
 
         in_atoms = False
+        in_bonds = False
+        in_angles = False
+
         atom_idx = 0
+        bond_idx = 0
+        angle_idx = 0
 
         for line in f:
 
@@ -76,6 +81,24 @@ def lammps_data_file_to_frame(filepath : Path, topology : Topology = None, eleme
                 frame.ids = np.empty(frame.num_atoms, dtype = np.int32)
                 frame.types = np.empty(frame.num_atoms, dtype = np.int32)
                 frame.positions = np.empty((frame.num_atoms, 3), dtype = np.float64)
+
+            elif line.endswith(" bonds"):
+
+                num_bonds = int(line.split()[0])
+
+                frame.topology.bonds = np.empty(
+                    (num_bonds, 4),
+                    dtype = np.int32
+                )
+
+            elif line.endswith(" angles"):
+
+                num_angles = int(line.split()[0])
+
+                frame.topology.angles = np.empty(
+                    (num_angles, 5),
+                    dtype = np.int32
+                )
 
             elif line.endswith(" xlo xhi"):
 
@@ -110,13 +133,28 @@ def lammps_data_file_to_frame(filepath : Path, topology : Topology = None, eleme
                     frame.mol_ids = np.empty(frame.num_atoms, dtype = np.int32)
 
                 in_atoms = True
+                in_bonds = False
+                in_angles = False
+
+                next(f)
+
+            elif line.startswith("Bonds"):
+
+                in_atoms = False
+                in_bonds = True
+                in_angles = False
+
+                next(f)
+
+            elif line.startswith("Angles"):
+
+                in_atoms = False
+                in_bonds = False
+                in_angles = True
 
                 next(f)
 
             elif in_atoms:
-
-                if line[0].isalpha():
-                    break
 
                 fields = line.split()
 
@@ -136,6 +174,29 @@ def lammps_data_file_to_frame(filepath : Path, topology : Topology = None, eleme
                     type_to_charge[atom_type] = float(fields[column_map["q"]])
 
                 atom_idx += 1
+
+            elif in_bonds:
+
+                fields = line.split()
+                
+                frame.topology.bonds[bond_idx, 0] = int(fields[0])
+                frame.topology.bonds[bond_idx, 1] = int(fields[1])
+                frame.topology.bonds[bond_idx, 2] = int(fields[2])
+                frame.topology.bonds[bond_idx, 3] = int(fields[3])
+
+                bond_idx += 1
+
+            elif in_angles:
+
+                fields = line.split()
+
+                frame.topology.angles[angle_idx, 0] = int(fields[0])
+                frame.topology.angles[angle_idx, 1] = int(fields[1])
+                frame.topology.angles[angle_idx, 2] = int(fields[2])
+                frame.topology.angles[angle_idx, 3] = int(fields[3])
+                frame.topology.angles[angle_idx, 4] = int(fields[4])
+
+                angle_idx += 1
 
     order = np.argsort(frame.ids)
 
