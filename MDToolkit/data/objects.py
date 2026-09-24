@@ -5,6 +5,7 @@ from abc import ABC, abstractmethod
 from MDToolkit.paths import ELEMENTS_CSV, MOLECULAR_DATA_JSON
 from MDToolkit.utils.structure_file_utils import create_elements_dictionary
 from MDToolkit.data.misc_objects import BoxVolume
+from MDToolkit.cpp_IO import _cpp_initialize
 
 class Topology:
   '''
@@ -726,8 +727,8 @@ class Simulation:
   '''
   '''
 
-  def __init__(self, filepath : Path, topology : Topology, reader : type[Reader]):
-    self.readers = [reader(filepath, topology)]
+  def __init__(self, filepath : Path, topology : Topology, reader : type[Reader], cpp_init = True):
+    self.readers = [reader(filepath, topology, cpp_init = cpp_init)]
     self.topology = topology
     self.filepath = filepath
 
@@ -757,8 +758,8 @@ class Simulation:
 class MultiSimulation(Simulation):
   '''
   '''
-  def __init__(self, filepaths : list[Path], topology : Topology, reader : type[Reader]):
-    self.readers = [reader(filepath, topology) for filepath in filepaths]
+  def __init__(self, filepaths : list[Path], topology : Topology, reader : type[Reader], cpp_init = True):
+    self.readers = [reader(filepath, topology, cpp_init = cpp_init) for filepath in filepaths]
     self.topology = topology
     self.filepaths = filepaths
     self._cumulative_lengths = np.cumsum([len(r) for r in self.readers])
@@ -804,9 +805,10 @@ class LAMMPS_CustomDump_Reader(Reader):
   '''
   '''
 
-  def __init__(self, filepath : Path, topology : Topology, frame_offsets = None, filesize = None):
+  def __init__(self, filepath : Path, topology : Topology, frame_offsets = None, filesize = None, cpp_init = True):
     self.filepath = filepath
     self.topology = topology
+    self._cpp_init = cpp_init
 
     self._file = open(filepath, "rb")
 
@@ -947,21 +949,25 @@ class LAMMPS_CustomDump_Reader(Reader):
     return len(self._frame_offsets)
 
   def _initialize(self):
-    self._frame_offsets = []
+    if self._cpp_init:
+      self._frame_offsets = _cpp_initialize(self.filepath)
+      self._file.seek(0)
+    else:
+      self._frame_offsets = []
 
-    self._file.seek(0)
+      self._file.seek(0)
 
-    while True:
-      position = self._file.tell()
-      line = self._file.readline()
+      while True:
+        position = self._file.tell()
+        line = self._file.readline()
 
-      if not line:
-        break
+        if not line:
+          break
 
-      if line.startswith(b"ITEM: TIMESTEP"):
-        self._frame_offsets.append(position)
+        if line.startswith(b"ITEM: TIMESTEP"):
+          self._frame_offsets.append(position)
 
-    self._file.seek(0)
+      self._file.seek(0)
 
   def _printline_at_byte(self, byte_position):
     self._file.seek(byte_position)

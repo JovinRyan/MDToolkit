@@ -1,136 +1,163 @@
 import numpy as np
+import os
 from tqdm.auto import tqdm
+from concurrent.futures import ProcessPoolExecutor
 from MDToolkit.data.objects import Simulation, Frame, Topology
 from MDToolkit.utils.misc_utils import get_n_even_chunks
 
-# def compute_MSD(simulation : Simulation, averaging_bins = 10, subtract_COM = True):
-#     '''
-#     '''
-
-#     timestep_chunks = get_n_even_chunks(simulation.timesteps, averaging_bins)
-#     frames_chunks = get_n_even_chunks(simulation.frames, averaging_bins)
-#     atom_counts_chunks = get_n_even_chunks(simulation.atom_counts, averaging_bins)
-
-#     all_msds = []
-#     for i in range(len(frames_chunks)):
-#         reference_frame = frames_chunks[i][0]
-
-#         reference_frame_coordinates_matrix = np.vstack([
-#             np.array(atom.position)
-#             for molecule in reference_frame.molecule_list
-#             for atom in molecule.atoms
-#         ])
-
-#         if subtract_COM:
-#             reference_COM = np.array(reference_frame.find_COM())
-
-#         msds = []
-
-#         for j in range(len(frames_chunks[i])):
-#             frame = frames_chunks[i][j]
-
-#             coordinates_matrix = np.vstack([
-#                 np.array(atom.position)
-#                 for molecule in frame.molecule_list
-#                 for atom in molecule.atoms
-#             ])
-
-#             if subtract_COM:
-#                 r_t_corr = coordinates_matrix - np.array(frame.find_COM())
-#                 r_0_corr = reference_frame_coordinates_matrix - reference_COM
-
-#                 dp_matrix = (r_t_corr - r_0_corr) ** 2
-#             else:
-#                 dp_matrix = (coordinates_matrix - reference_frame_coordinates_matrix) ** 2
-
-#             msds.append(np.sum(dp_matrix, axis=0) / atom_counts_chunks[i][j])  # per atom scalar MSD
-
-#             msds[j] = np.append(msds[j], np.sum(msds[j]))
-
-#         all_msds.append(msds)
-
-#     mean_msds = np.mean(all_msds, axis = 0)
-
-#     msds_std_dev = np.std(all_msds, axis = 0)
-
-
-#     return {
-#         "x_msd" : mean_msds[:, 0], "x_std" : msds_std_dev[:, 0],
-#         "y_msd" : mean_msds[:, 1], "y_std" : msds_std_dev[:, 1],
-#         "z_msd" : mean_msds[:, 2], "z_std" : msds_std_dev[:, 2],
-#         "sum_msd" : mean_msds[:, 3], "sum_std" : msds_std_dev[:, 3],
-#         "timesteps" : timestep_chunks[0]
-#     }
-
-def compute_msd(simulation: Simulation, subtract_COM = True, n_averaging_blocks = 10):
+def frame_msd(frame : Frame, reference_positions, ion_spcs : list[str], reference_COM = None):
     '''
     '''
-    indices = np.arange(len(simulation))
+    msd = {"timestep" : frame.timestep}
 
-    index_chunks = get_n_even_chunks(indices, n_averaging_blocks)
+    if reference_COM is not None:
+        COM_displacement = frame.get_COM() - reference_COM
 
-    timesteps = get_n_even_chunks(
-        np.array([frame.timestep for frame in simulation]),
-        n_averaging_blocks
-    )[0]
+    for ion_spc in ion_spcs:
 
-    msd_chunks = []
+        ion_types = [
+            k for k, v in frame.topology.type_mapping.items()
+            if v == ion_spc
+        ]
 
-    used_unwrapped_positions = True
+        mask = np.isin(frame.types, ion_types)
 
-    for index_chunk in tqdm(index_chunks):
-
-        reference_frame = simulation[index_chunk[0]]
-
-        if subtract_COM:
-            reference_COM = reference_frame.get_COM()
+        if frame.unwrapped_positions is not None:
+            displacements = frame.unwrapped_positions[mask] - reference_positions[mask]
         else:
-            reference_COM = np.array([0.0, 0.0, 0.0])
+            displacements = frame.positions[mask] - reference_positions[mask]
 
-        block_msd = []
+        if reference_COM is not None:
+            displacements -= COM_displacement
 
-        for i in index_chunk:
+        msd[ion_spc] = np.mean(
+            np.sum(np.square(displacements), axis = 1),
+            axis = 0
+        )
 
-            frame = simulation[i]
+    return msd
 
-            if subtract_COM:
-                COM = frame.get_COM()
-            else:
-                COM = np.array([0.0, 0.0, 0.0])
+_readers = None
+_reference_positions = None
+_reference_COM = None
 
-            if frame.unwrapped_positions is not None:
-                diff = frame.unwrapped_positions - reference_frame.unwrapped_positions
-            else:
-                used_unwrapped_positions = False
-                diff = frame.positions - reference_frame.positions
+def _initialize_msd_worker(metadata_list, topology, reference_positions, reference_COM):
 
-            block_msd.append(
-                np.mean((diff - COM + reference_COM) ** 2, axis = 0)
+    global _readers
+    global _reference_positions
+    global _reference_COM
+
+    _readers = {}
+    _reference_positions = reference_positions
+    _reference_COM = reference_COM
+
+    for metadata in metadata_list:
+
+        reader = metadata["reader"](
+            metadata["filepath"],
+            topology,
+            frame_offsets = metadata["frame_offsets"],
+            filesize = metadata["filesize"]
+        )
+
+        _readers[metadata["filepath"]] = reader
+
+def _frame_msd_worker(args):
+    '''
+    '''
+    metadata, idx, ion_spcs = args
+
+    reader = _readers[metadata["filepath"]]
+    
+    frame = reader.read_frame(idx)
+
+    return frame_msd(frame, reference_positions=_reference_positions, ion_spcs=ion_spcs, reference_COM=_reference_COM)
+
+def compute_msd(simulation: Simulation, ion_spcs : list[str], subtract_COM = True, n_workers = os.cpu_count() // 2):
+    '''
+    '''
+    metadata = simulation.metadata
+    
+    if not isinstance(metadata, list):
+        metadata = [metadata]
+
+    reference_frame = simulation[0]
+
+    ions_types = [
+        k for k, v in reference_frame.topology.type_mapping.items()
+        if v in ion_spcs
+    ]
+
+    reference_positions = reference_frame.unwrapped_positions
+
+    reference_COM = reference_frame.get_COM() if subtract_COM else None
+
+    tasks = [
+        (frame_metadata, idx, ion_spcs)
+        for frame_metadata, idx in simulation.iter_frame_tasks()
+    ]
+
+    with ProcessPoolExecutor(
+            max_workers=n_workers,
+            initializer=_initialize_msd_worker,
+            initargs=(metadata, simulation.topology, reference_positions, reference_COM)
+        ) as executor:
+    
+            results = list(
+                tqdm(
+                    executor.map(_frame_msd_worker, tasks, chunksize=500),
+                    total=len(tasks)
+                )
             )
-
-        block_msd = np.array(block_msd)
-
-        block_msd_sum = block_msd.sum(axis = 1, keepdims = True)
-
-        block_msd = np.hstack((block_msd, block_msd_sum))
-
-        msd_chunks.append(block_msd)
-
-    if not used_unwrapped_positions:
-        print("Warning: used wrapped positions for MSD calculation!")
-
-    msd_chunks = np.array(msd_chunks)
-
-    msd_mean = np.mean(msd_chunks, axis = 0)
-    msd_std = np.std(msd_chunks, axis = 0)
-
-    return {
-        "msd": msd_mean,
-        "std": msd_std,
-        "t": timesteps
+    results = {
+        "timesteps": np.array([result["timestep"] for result in results]),
+        **{
+            ion_spc: np.array([
+                result[ion_spc]
+                for result in results
+            ])
+            for ion_spc in ion_spcs
+        }
     }
 
-    
+    return results
 
-    
+def compute_diffusivity(msd_data, ion_spcs, n_blocks = 10):
+    '''
+    '''
+    indices = get_n_even_chunks(
+        range(len(msd_data["timesteps"])),
+        n_chunks = n_blocks
+    )
 
+    diffusivities = {}
+
+    timesteps = msd_data["timesteps"]
+
+    for ion_spc in ion_spcs:
+
+        block_diffusivities = []
+
+        for block in indices:
+
+            block = np.array(block)
+
+            t = timesteps[block]
+            t = t - t[0]
+
+            msd = msd_data[ion_spc][block]
+            msd = msd - msd[0]
+
+            slope, intercept = np.polyfit(t, msd, 1)
+
+            block_diffusivities.append(slope / 6)
+
+        block_diffusivities = np.array(block_diffusivities)
+
+        diffusivities[ion_spc] = {
+            "blocks": block_diffusivities,
+            "mean": np.mean(block_diffusivities),
+            "std": np.std(block_diffusivities, ddof = 1)
+        }
+
+    return diffusivities
