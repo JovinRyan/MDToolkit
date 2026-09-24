@@ -1,12 +1,12 @@
 [build-system]
 requires = [
     "scikit-build-core>=0.10",
-    "pybind11>=2.12",
+    "pybind11",
 ]
 build-backend = "scikit_build_core.build"
 
 [project]
-name = "mdtoolkit"
+name = "MDToolkit"
 version = "0.1.0"
 description = "Molecular dynamics toolkit"
 readme = "README.md"
@@ -14,6 +14,7 @@ requires-python = ">=3.10"
 dependencies = []
 
 [tool.scikit-build]
-cmake.source-dir = "cpp"
-build-dir = "build/{wheel_tag}"
 wheel.packages = ["MDToolkit"]
+
+[tool.scikit-build.editable]
+mode = "redirect"
