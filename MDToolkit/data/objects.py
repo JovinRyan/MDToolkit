@@ -736,7 +736,16 @@ class Simulation:
     yield from self.readers[0]
 
   def __getitem__(self, idx):
-    return self.readers[0].read_frame(idx)
+      if isinstance(idx, slice):
+          return [self.readers[0].read_frame(i) for i in range(*idx.indices(len(self)))]
+
+      if idx < 0:
+          idx += len(self)
+
+      if idx < 0 or idx >= len(self):
+          raise IndexError(idx)
+
+      return self.readers[0].read_frame(idx)
 
   def __len__(self):
     return len(self.readers[0])

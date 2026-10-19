@@ -6,7 +6,7 @@ from MDToolkit.data.objects import Frame
 from MDToolkit.data.misc_objects import Volume
 from MDToolkit.utils.misc_utils import get_n_even_chunks
 
-def axial_density(frame : Frame, volumes : Sequence[Volume] = None, bin_width = 0.1, axis_idx = 0):
+def axial_density(frame : Frame, volumes : Sequence[Volume] = None, bin_width = 0.1, axis_idx = 0, atom_spcs = None):
     '''
     '''
 
@@ -19,6 +19,13 @@ def axial_density(frame : Frame, volumes : Sequence[Volume] = None, bin_width = 
     masks = [vol.contains(frame.positions) for vol in volumes]
 
     mask = np.logical_or.reduce(masks)
+
+    if atom_spcs is not None:
+        atom_types = [k for k, v in frame.topology.type_mapping.items() if v in atom_spcs]
+        
+        atom_mask = np.isin(frame.types, atom_types)
+
+        mask = mask & atom_mask
 
     masked_axial_positions = frame.positions[mask][:, axis_idx]
     masked_masses = frame.get_masses()[mask]
@@ -117,7 +124,7 @@ def axial_density(frame : Frame, volumes : Sequence[Volume] = None, bin_width = 
         "elemental_number_density" : elemental_number_density
     }
     
-def axial_density_time_averaged(simulation, volumes : Sequence[Volume] = None, bin_width = 0.1, axis_idx = 0, n_averaging_blocks = 10):
+def axial_density_time_averaged(simulation, volumes : Sequence[Volume] = None, bin_width = 0.1, axis_idx = 0, n_averaging_blocks = 10, atom_spcs = None):
     '''
     '''
 
@@ -130,7 +137,8 @@ def axial_density_time_averaged(simulation, volumes : Sequence[Volume] = None, b
                 frame,
                 volumes = volumes,
                 bin_width = bin_width,
-                axis_idx = axis_idx
+                axis_idx = axis_idx,
+                atom_spcs=atom_spcs
             )
         )
     

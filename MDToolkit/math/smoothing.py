@@ -2,6 +2,7 @@ import numpy as np
 import scipy as sc 
 import statsmodels.api as sm 
 from scipy.signal import savgol_filter
+from scipy.ndimage import gaussian_filter1d
 import skfda
 from skfda.misc.hat_matrix import (
     KNeighborsHatMatrix,
@@ -50,6 +51,22 @@ def convolve(x, y, window = 101, n_points : int = 1000):
 
     return x_smooth, y_smooth
 
+def kernel_gaussian(x, y, bandwidth, n_points : int = 1000):
+    '''
+    '''
+    x = np.asarray(x)
+    y = np.asarray(y)
+
+    dx = np.mean(np.diff(x))
+    sigma = bandwidth / dx
+
+    y_smooth = gaussian_filter1d(y, sigma = sigma, mode="nearest", truncate = 4.0)
+
+    x_smooth = np.linspace(x.min(), x.max(), n_points)
+
+    y_smooth = np.interp(x_smooth, x, y_smooth)
+
+    return x_smooth, y_smooth
 
 def kernel_nadaraya_watson(
     x,
